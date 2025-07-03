@@ -18,9 +18,9 @@ class HandGestureApp:
         
         # 初始化手部检测器
         self.detector = HandDetector(
-            staticMode=config.HAND_DETECTION_CONFIG['static_mode'],
+            # staticMode=config.HAND_DETECTION_CONFIG['static_mode'],
             maxHands=config.HAND_DETECTION_CONFIG['max_hands'],
-            modelComplexity=config.HAND_DETECTION_CONFIG['model_complexity'],
+            # modelComplexity=config.HAND_DETECTION_CONFIG['model_complexity'],
             detectionCon=config.HAND_DETECTION_CONFIG['detection_confidence'],
             minTrackCon=config.HAND_DETECTION_CONFIG['min_tracking_confidence']
         )

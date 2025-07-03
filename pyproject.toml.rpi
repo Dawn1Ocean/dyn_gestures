@@ -1,0 +1,16 @@
+[project]
+name = "cvzone-test"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = "==3.8"
+dependencies = [
+    "cvzone==1.5.6",
+    "mediapipe",
+    "numpy",
+    "opencv-python>=4.11.0.86",
+    "protobuf==3.20",
+]
+
+[tool.uv.sources]
+mediapipe = { path = "../mediapipe-0.8.4-cp38-cp38-linux_aarch64.whl" }

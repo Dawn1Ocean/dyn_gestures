@@ -243,3 +243,26 @@ class HandUtils:
         """
         cv2.putText(img, message, (50, img.shape[0] - 50), 
                    cv2.FONT_HERSHEY_SIMPLEX, 1, color, 3)
+    
+    @staticmethod
+    def is_thumb_close_to_palm(landmarks: List[List[int]], distance_threshold_percent: float = 0.4) -> bool:
+        """
+        判断拇指是否靠近掌心
+        Args:
+            landmarks: 手部关键点列表
+            distance_threshold_percent: 距离阈值百分比（相对于手掌基准长度）
+        Returns:
+            拇指是否靠近掌心
+        """
+        thumb_tip = landmarks[4]
+        palm_center = HandUtils.calculate_palm_center(landmarks)
+        palm_base_length = HandUtils.calculate_palm_base_length(landmarks)
+        
+        # 计算拇指尖到掌心的距离
+        thumb_to_palm_distance = HandUtils.calculate_distance(thumb_tip, list(palm_center))
+        
+        # 计算距离比例
+        distance_ratio = thumb_to_palm_distance / palm_base_length if palm_base_length > 0 else 1.0
+        
+        # 如果距离小于阈值，认为拇指靠近掌心
+        return distance_ratio < distance_threshold_percent

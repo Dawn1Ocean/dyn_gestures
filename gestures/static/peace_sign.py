@@ -32,12 +32,15 @@ class PeaceSignDetector(StaticGestureDetector):
         # 3. 检查食指和中指之间是否张开形成V字 - 使用HandUtils的通用方法
         fingers_spread = HandUtils.check_fingers_spread(landmarks, 8, 12, 0.3)
         
-        # 4. 基础判断
-        if index_extended and middle_extended and ring_bent and pinky_bent and fingers_spread:
+        # 4. 检查拇指是否靠近掌心（V字手势时拇指通常收起）
+        thumb_close_to_palm = HandUtils.is_thumb_close_to_palm(landmarks, 0.5)
+        
+        # 5. 基础判断
+        if index_extended and middle_extended and ring_bent and pinky_bent and fingers_spread and thumb_close_to_palm:
             # 计算置信度
             confidence = self._calculate_confidence(landmarks)
             
-            # 5. 检查连续检测帧数
+            # 6. 检查连续检测帧数
             if self.check_continuous_detection(hand_id, "PeaceSign", confidence):
                 return {
                     'gesture': 'PeaceSign',
@@ -49,6 +52,7 @@ class PeaceSignDetector(StaticGestureDetector):
                         'middle_extended': middle_extended,
                         'other_fingers_bent': ring_bent and pinky_bent,
                         'fingers_spread': fingers_spread,
+                        'thumb_close_to_palm': thumb_close_to_palm,
                         'frames_detected': self.detection_history[hand_id]['count']
                     }
                 }
@@ -84,6 +88,10 @@ class PeaceSignDetector(StaticGestureDetector):
         pinky_bend = max(0, pinky_tip[1] - wrist[1])
         
         if ring_bend > 0 and pinky_bend > 0:
+            base_confidence += 5
+        
+        # 根据拇指是否收起加分
+        if HandUtils.is_thumb_close_to_palm(landmarks, 0.5):
             base_confidence += 5
         
         return min(100, base_confidence)

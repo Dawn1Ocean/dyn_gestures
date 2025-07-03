@@ -142,29 +142,30 @@ class HandUtils:
     @staticmethod
     def calculate_thumb_angle(landmarks: List[List[int]]) -> float:
         """
-        计算大拇指与垂直方向的夹角
+        计算大拇指与垂直方向的夹角（双向）
         Args:
             landmarks: 手部关键点列表
         Returns:
-            大拇指角度（度）
+            大拇指角度（度），范围 0-90 度，不论向上还是向下
         """
         thumb_tip = landmarks[4]
         thumb_mcp = landmarks[2]
         
         # 计算大拇指向量（从MCP到TIP）
         thumb_vector = [thumb_tip[0] - thumb_mcp[0], thumb_tip[1] - thumb_mcp[1]]
-        # 垂直向上的向量
-        vertical_vector = [0, -1]
         
-        # 计算夹角
-        dot_product = thumb_vector[0] * vertical_vector[0] + thumb_vector[1] * vertical_vector[1]
+        # 计算向量长度
         thumb_length = math.sqrt(thumb_vector[0]**2 + thumb_vector[1]**2)
         
         if thumb_length == 0:
             return 90.0
         
-        cos_angle = dot_product / thumb_length
-        cos_angle = max(-1, min(1, cos_angle))  # 限制在[-1, 1]范围内
+        # 计算与垂直方向的夹角（使用Y分量的绝对值）
+        # abs(cos(θ)) = |y_component| / length
+        cos_angle = abs(thumb_vector[1]) / thumb_length
+        cos_angle = min(1.0, cos_angle)  # 限制在[0, 1]范围内
+        
+        # 计算角度（这给出的是与垂直方向的夹角）
         angle_rad = math.acos(cos_angle)
         angle_deg = math.degrees(angle_rad)
         

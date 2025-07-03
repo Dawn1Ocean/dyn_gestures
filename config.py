@@ -36,12 +36,21 @@ GESTURE_CONFIG = {
         'thumb_angle_threshold': 45.0,          # 大拇指角度阈值（度）
         'thumb_isolation_threshold': 0.5,       # 大拇指与其他手指PIP最小距离阈值（百分比）
         'required_frames': 15                   # 需要连续检测的帧数
+    },
+
+    # 倒竖大拇指
+    'thumbs_down': {
+        'thumb_distance_threshold': 0.6,        # 大拇指指尖距离掌心阈值（百分比）
+        'other_fingers_threshold': 0.45,        # 其他手指指尖距离掌心阈值（百分比）
+        'thumb_angle_threshold': 45.0,          # 大拇指角度阈值（度）
+        'thumb_isolation_threshold': 0.5,       # 大拇指与其他手指PIP最小距离阈值（百分比）
+        'required_frames': 15                   # 需要连续检测的帧数
     }
 }
 
 # 手势类型定义
 GESTURE_TYPES = {
-    'static_gestures': ['PeaceSign', 'ThumbsUp'],  # 静态手势列表
+    'static_gestures': ['PeaceSign', 'ThumbsUp', 'ThumbsDown'],  # 静态手势列表
     'dynamic_gestures': ['HandOpen'],  # 动态手势列表
     'confidence_threshold_for_update': 5.0  # 静态手势置信度变化阈值
 }

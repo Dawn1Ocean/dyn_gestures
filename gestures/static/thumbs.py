@@ -1,5 +1,5 @@
 """
-竖大拇指手势检测器 - 静态手势
+大拇指手势检测器 - 静态手势
 """
 
 from typing import List, Dict, Any, Optional
@@ -7,15 +7,17 @@ from ..base import StaticGestureDetector
 from hand_utils import HandUtils
 
 
-class ThumbsUpDetector(StaticGestureDetector):
-    """竖大拇指手势检测器 - 优化版本"""
+class ThumbsDetector(StaticGestureDetector):
+    """大拇指手势检测器 - 优化版本"""
     
     def __init__(self, thumb_distance_threshold: float = 0.8, 
                  other_fingers_threshold: float = 0.45,
                  thumb_angle_threshold: float = 30.0,
                  thumb_isolation_threshold: float = 0.6,  # 大拇指与其他手指PIP的最小距离阈值
-                 required_frames: int = 30):
-        super().__init__("ThumbsUp", required_frames)
+                 required_frames: int = 15,
+                 type: str = "ThumbsUp"):
+        super().__init__(type, required_frames)
+        self.type = type  # 手势类型
         self.thumb_distance_threshold = thumb_distance_threshold      # 大拇指距离掌心阈值
         self.other_fingers_threshold = other_fingers_threshold        # 其他手指距离掌心阈值
         self.thumb_angle_threshold = thumb_angle_threshold            # 大拇指角度阈值（度）
@@ -35,6 +37,7 @@ class ThumbsUpDetector(StaticGestureDetector):
         
         # 1. 检查大拇指是否朝上（Y坐标递减且角度合适）
         thumb_upward = thumb_tip[1] < thumb_ip[1] < thumb_mcp[1]
+        thumb_downward = thumb_tip[1] > thumb_ip[1] > thumb_mcp[1]
         thumb_angle = HandUtils.calculate_thumb_angle(landmarks)
         thumb_angle_good = thumb_angle < self.thumb_angle_threshold
         
@@ -82,8 +85,8 @@ class ThumbsUpDetector(StaticGestureDetector):
         thumb_isolated = self._check_thumb_isolation_from_pips(thumb_tip, other_finger_pips, palm_base_length)
         
         # 5. 综合判断
-        all_conditions = [thumb_upward, thumb_angle_good, thumb_extended, all_fingers_close, thumb_isolated]
-        
+        all_conditions = [thumb_upward if self.type == "ThumbsUp" else thumb_downward, thumb_angle_good, thumb_extended, all_fingers_close, thumb_isolated]
+
         if all(all_conditions):
             # 计算置信度
             confidence = self._calculate_confidence(
@@ -91,14 +94,15 @@ class ThumbsUpDetector(StaticGestureDetector):
             )
             
             # 6. 检查连续检测帧数
-            if self.check_continuous_detection(hand_id, "ThumbsUp", confidence):
+            if self.check_continuous_detection(hand_id, self.type, confidence):
                 return {
-                    'gesture': 'ThumbsUp',
+                    'gesture': self.type,
                     'hand_type': hand_type,
                     'confidence': confidence,
                     'details': {
-                        'description': '竖大拇指（点赞）',
+                        'description': self.type,
                         'thumb_upward': thumb_upward,
+                        'thumb_downward': thumb_downward,
                         'thumb_angle_good': thumb_angle_good,
                         'thumb_extended': thumb_extended,
                         'all_fingers_close': all_fingers_close,
@@ -166,6 +170,6 @@ class ThumbsUpDetector(StaticGestureDetector):
         self.reset_detection_history(hand_id)
     
     def get_display_message(self, gesture_result: Dict[str, Any]) -> str:
-        """获取竖大拇指手势的显示消息"""
+        """获取大拇指手势的显示消息"""
         hand_type = gesture_result['hand_type']
-        return f"{hand_type} Hand: Thumbs Up"
+        return f"{hand_type} Hand: " + self.type

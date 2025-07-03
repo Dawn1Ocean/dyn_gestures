@@ -3,6 +3,6 @@
 """
 
 from .peace_sign import PeaceSignDetector
-from .thumbs_up import ThumbsUpDetector
+from .thumbs import ThumbsDetector
 
-__all__ = ['PeaceSignDetector', 'ThumbsUpDetector']
+__all__ = ['PeaceSignDetector', 'ThumbsDetector']

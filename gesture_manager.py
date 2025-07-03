@@ -8,7 +8,7 @@ from gestures import (
     StaticGestureDetector,
     HandOpenDetector, 
     PeaceSignDetector,
-    ThumbsUpDetector
+    ThumbsDetector
 )
 import config
 
@@ -32,12 +32,23 @@ class GestureManager:
         ))
         
         thumbs_up_config = config.GESTURE_CONFIG['thumbs_up']
-        self.add_detector(ThumbsUpDetector(
+        self.add_detector(ThumbsDetector(
             thumb_distance_threshold=thumbs_up_config['thumb_distance_threshold'],
             other_fingers_threshold=thumbs_up_config['other_fingers_threshold'],
             thumb_angle_threshold=thumbs_up_config['thumb_angle_threshold'],
             thumb_isolation_threshold=thumbs_up_config['thumb_isolation_threshold'],
-            required_frames=thumbs_up_config['required_frames']
+            required_frames=thumbs_up_config['required_frames'],
+            type="ThumbsUp"
+        ))
+
+        thumbs_down_config = config.GESTURE_CONFIG['thumbs_down']
+        self.add_detector(ThumbsDetector(
+            thumb_distance_threshold=thumbs_down_config['thumb_distance_threshold'],
+            other_fingers_threshold=thumbs_down_config['other_fingers_threshold'],
+            thumb_angle_threshold=thumbs_down_config['thumb_angle_threshold'],
+            thumb_isolation_threshold=thumbs_down_config['thumb_isolation_threshold'],
+            required_frames=thumbs_down_config['required_frames'],
+            type="ThumbsDown"
         ))
     
     def add_detector(self, detector: GestureDetector):

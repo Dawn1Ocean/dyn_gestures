@@ -10,7 +10,7 @@ from .dynamic.hand_open import HandOpenDetector
 
 # 导入静态手势检测器
 from .static.peace_sign import PeaceSignDetector
-from .static.thumbs_up import ThumbsUpDetector
+from .static.thumbs import ThumbsDetector
 
 __all__ = [
     'GestureDetector', 
@@ -18,5 +18,5 @@ __all__ = [
     'DynamicGestureDetector',
     'HandOpenDetector',
     'PeaceSignDetector',
-    'ThumbsUpDetector',
+    'ThumbsDetector',
 ]

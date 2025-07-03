@@ -4,6 +4,7 @@
 
 from cvzone.HandTrackingModule import HandDetector
 import cv2
+import time
 from gesture_manager import GestureManager
 from hand_utils import HandUtils
 import config
@@ -15,6 +16,12 @@ class HandGestureApp:
     def __init__(self):
         # 初始化摄像头
         self.cap = cv2.VideoCapture(config.CAMERA_INDEX)
+        # 设置摄像头分辨率
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, config.CAMERA_FRAME_WIDTH)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, config.CAMERA_FRAME_HEIGHT)
+        
+        # 设置摄像头FPS
+        self.cap.set(cv2.CAP_PROP_FPS, config.CAMERA_FPS)
         
         # 初始化手部检测器
         self.detector = HandDetector(
@@ -37,9 +44,33 @@ class HandGestureApp:
         
         # 静态手势输出控制 - 避免重复刷屏
         self.last_printed_gesture = None  # 记录上一次打印的任何手势 (gesture_key)
+        
+        # FPS计算相关
+        self.fps_counter = 0
+        self.fps_start_time = time.time()
+        self.current_fps = 0.0
+        self.fps_update_interval = config.DISPLAY_CONFIG['fps_update_interval']
+    
+    def update_fps(self):
+        """更新FPS计算"""
+        self.fps_counter += 1
+        
+        if self.fps_counter >= self.fps_update_interval:
+            current_time = time.time()
+            elapsed_time = current_time - self.fps_start_time
+            
+            if elapsed_time > 0:
+                self.current_fps = self.fps_counter / elapsed_time
+            
+            # 重置计数器
+            self.fps_counter = 0
+            self.fps_start_time = current_time
     
     def process_frame(self, img):
         """处理单帧图像"""
+        # 更新FPS计算
+        self.update_fps()
+        
         # 左右翻转摄像头画面（如果配置启用）
         if config.DISPLAY_CONFIG['flip_image']:
             img = cv2.flip(img, 1)
@@ -80,6 +111,10 @@ class HandGestureApp:
         if self.gesture_timer > 0:
             HandUtils.draw_gesture_message(img, self.gesture_message, config.COLORS['gesture_message'])
             self.gesture_timer -= 1
+        
+        # 绘制FPS（如果配置启用）
+        if config.DISPLAY_CONFIG['show_fps']:
+            HandUtils.draw_fps(img, self.current_fps, config.COLORS['fps_text'])
         
         return img
     
@@ -152,9 +187,16 @@ class HandGestureApp:
         print("启动手势检测应用...")
         print("按 'q' 键或关闭窗口退出")
         
+        # 显示摄像头设置信息
+        actual_fps = self.cap.get(cv2.CAP_PROP_FPS)
+        print(f"摄像头FPS设置: {config.CAMERA_FPS}, 实际FPS: {actual_fps:.1f}")
+        
         # 检查是否显示摄像头窗口
         if not config.DISPLAY_CONFIG['show_camera_window']:
             print("摄像头画面显示已禁用，只进行后台手势检测")
+        
+        if config.DISPLAY_CONFIG['show_fps']:
+            print("FPS显示已启用")
         
         while self.running:
             # 读取帧
@@ -165,6 +207,9 @@ class HandGestureApp:
             
             # 处理帧
             img = self.process_frame(img)
+            
+            # 更新FPS
+            self.update_fps()
             
             # 显示图像（如果配置启用）
             if config.DISPLAY_CONFIG['show_camera_window']:

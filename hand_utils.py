@@ -245,6 +245,25 @@ class HandUtils:
                    cv2.FONT_HERSHEY_SIMPLEX, 1, color, 3)
     
     @staticmethod
+    def draw_fps(img, fps: float, color: Tuple[int, int, int] = (255, 255, 255)):
+        """
+        在图像右上角绘制FPS信息
+        Args:
+            img: 图像
+            fps: FPS值
+            color: 文本颜色
+        """
+        fps_text = f"FPS: {fps:.1f}"
+        text_size = cv2.getTextSize(fps_text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)[0]
+        x = img.shape[1] - text_size[0] - 10  # 右边距10像素
+        y = 30  # 顶部距离30像素
+        
+        # 绘制背景矩形
+        cv2.rectangle(img, (x - 5, y - 20), (x + text_size[0] + 5, y + 5), (0, 0, 0), -1)
+        # 绘制FPS文本
+        cv2.putText(img, fps_text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+    
+    @staticmethod
     def is_thumb_close_to_palm(landmarks: List[List[int]], distance_threshold_percent: float = 0.4) -> bool:
         """
         判断拇指是否靠近掌心

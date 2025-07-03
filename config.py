@@ -4,6 +4,9 @@
 
 # 摄像头配置
 CAMERA_INDEX = 0
+CAMERA_FPS = 60  # 摄像头帧率设置
+CAMERA_FRAME_WIDTH = 640  # 摄像头帧宽度
+CAMERA_FRAME_HEIGHT = 360  # 摄像头帧高度
 
 # 手势检测配置
 HAND_DETECTION_CONFIG = {
@@ -62,7 +65,9 @@ DISPLAY_CONFIG = {
     'show_landmarks': True,
     'flip_image': True,                 # cvzone的flipType参数
     'show_camera_window': True,         # 是否显示摄像头识别画面
-    'gesture_message_duration': 15      # 帧数
+    'gesture_message_duration': 15,     # 帧数
+    'show_fps': True,                   # 显示FPS
+    'fps_update_interval': 10           # FPS更新间隔（帧数）
 }
 
 # 颜色配置 (BGR格式)
@@ -71,5 +76,6 @@ COLORS = {
     'text_primary': (255, 0, 0),       # 蓝色
     'text_secondary': (0, 0, 255),     # 红色
     'gesture_message': (0, 255, 0),    # 绿色
-    'palm_info': (0, 255, 255)         # 青色
+    'palm_info': (0, 255, 255),        # 青色
+    'fps_text': (255, 255, 255)        # 白色 - FPS文本颜色
 }

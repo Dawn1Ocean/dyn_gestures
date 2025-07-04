@@ -28,28 +28,62 @@ class HandDetector:
         self.detectionCon = detectionCon
         self.minTrackCon = minTrackCon
 
-        # 1. 设置基础选项 (BaseOptions)，这是启用 GPU 的关键
-        base_options = python.BaseOptions(
-            model_asset_path='cvzone/hand_landmarker.task', # 指定下载的模型文件
-            delegate=python.BaseOptions.Delegate.GPU
-        )
-
-        # 2. 根据是处理静态图片还是视频流，设置不同的 running_mode
-        # 您的代码是处理视频流，所以使用 VIDEO 或 LIVE_STREAM 模式
-        running_mode = vision.RunningMode.VIDEO
+        # 1. 尝试使用 GPU delegate，失败时回退到 CPU
+        self.using_gpu = False
+        self.detector = None
         
-        # 3. 创建 HandLandmarkerOptions
-        # 注意参数名称的变化 (e.g., max_num_hands -> num_hands)
-        options = vision.HandLandmarkerOptions(
-            base_options=base_options,
-            running_mode=running_mode,
-            num_hands=self.maxHands,
-            min_hand_detection_confidence=self.detectionCon,
-            min_tracking_confidence=self.minTrackCon
-        )
-
-        # 4. 创建检测器实例
-        self.detector = vision.HandLandmarker.create_from_options(options)
+        # 首先尝试 GPU delegate
+        try:
+            base_options = python.BaseOptions(
+                model_asset_path='cvzone/hand_landmarker.task',
+                delegate=python.BaseOptions.Delegate.GPU
+            )
+            
+            # 2. 根据是处理静态图片还是视频流，设置不同的 running_mode
+            running_mode = vision.RunningMode.VIDEO
+            
+            # 3. 创建 HandLandmarkerOptions
+            options = vision.HandLandmarkerOptions(
+                base_options=base_options,
+                running_mode=running_mode,
+                num_hands=self.maxHands,
+                min_hand_detection_confidence=self.detectionCon,
+                min_tracking_confidence=self.minTrackCon
+            )
+            
+            # 4. 创建检测器实例
+            self.detector = vision.HandLandmarker.create_from_options(options)
+            self.using_gpu = True
+            print("✓ GPU delegate 初始化成功")
+            
+        except Exception as gpu_error:
+            print(f"⚠ GPU delegate 初始化失败: {gpu_error}")
+            print("正在尝试使用 CPU delegate...")
+            
+            try:
+                # 回退到 CPU delegate
+                base_options = python.BaseOptions(
+                    model_asset_path='cvzone/hand_landmarker.task',
+                    delegate=python.BaseOptions.Delegate.CPU
+                )
+                
+                running_mode = vision.RunningMode.VIDEO
+                
+                options = vision.HandLandmarkerOptions(
+                    base_options=base_options,
+                    running_mode=running_mode,
+                    num_hands=self.maxHands,
+                    min_hand_detection_confidence=self.detectionCon,
+                    min_tracking_confidence=self.minTrackCon
+                )
+                
+                self.detector = vision.HandLandmarker.create_from_options(options)
+                self.using_gpu = False
+                print("✓ CPU delegate 初始化成功")
+                
+            except Exception as cpu_error:
+                print(f"✗ CPU delegate 也初始化失败: {cpu_error}")
+                raise RuntimeError(f"无法初始化 HandLandmarker，GPU 错误: {gpu_error}, CPU 错误: {cpu_error}")
 
         self.tipIds = [4, 8, 12, 16, 20]
         self.results = None # 用于存储最新的检测结果
@@ -61,6 +95,11 @@ class HandDetector:
         :param draw: 是否在图像上绘制结果的标志。
         :return: 包含所有手部信息的列表，以及绘制了结果的图像。
         """
+        # 检查检测器是否已成功初始化
+        if self.detector is None:
+            print("⚠ 检测器未初始化，返回空结果")
+            return [], img
+            
         imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         h, w, c = img.shape
         
@@ -71,7 +110,11 @@ class HandDetector:
         timestamp_ms = int(time.time() * 1000)
         
         # 使用新的检测器进行检测
-        self.results = self.detector.detect_for_video(mp_image, timestamp_ms)
+        try:
+            self.results = self.detector.detect_for_video(mp_image, timestamp_ms)
+        except Exception as e:
+            print(f"⚠ 手部检测失败: {e}")
+            return [], img
 
         allHands = []
         if self.results.hand_landmarks:
@@ -176,7 +219,10 @@ def main():
     # 确保模型文件 'hand_landmarker.task' 存在
     try:
         detector = HandDetector(staticMode=False, maxHands=2, detectionCon=0.5, minTrackCon=0.5)
-        print("HandDetector 初始化成功，正在使用 GPU...")
+        if detector.using_gpu:
+            print("HandDetector 初始化成功，正在使用 GPU...")
+        else:
+            print("HandDetector 初始化成功，正在使用 CPU...")
     except Exception as e:
         print(f"初始化 HandDetector 失败: {e}")
         print("请确保 'hand_landmarker.task' 模型文件已下载并与脚本在同一目录。")

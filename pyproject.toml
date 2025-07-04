@@ -3,10 +3,9 @@ name = "cvzone-test"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.8"
 dependencies = [
-    "cvzone>=1.6.1",
-    "mediapipe>=0.10.21",
-    "numpy>=1.26.4",
-    "opencv-python>=4.11.0.86",
+    "mediapipe==0.10.9",
+    "numpy",
+    "opencv-python>=4",
 ]

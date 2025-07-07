@@ -11,7 +11,7 @@ CAMERA_FRAME_HEIGHT = 360  # 摄像头帧高度
 # 手势检测配置
 HAND_DETECTION_CONFIG = {
     'static_mode': False,      # 是否使用静态模式
-    'max_hands': 2,           # 最大检测手数
+    'max_hands': 1,           # 最大检测手数
     'model_complexity': 1,    # 模型复杂度 (0-2)
     'detection_confidence': 0.5,        # 检测置信度
     'min_tracking_confidence': 0.5      # 最小跟踪置信度
@@ -24,6 +24,26 @@ GESTURE_CONFIG = {
         'history_length': 10,
         'variance_change_percent': 50,
         'distance_multiplier': 1.5
+    },
+    
+    # 张开到握拳手势
+    'hand_close': {
+        'history_length': 10,
+        'variance_change_percent': 40,
+        'distance_multiplier': 0.7,
+        'fist_hold_frames': 30,  # 握拳状态需要保持的帧数
+        'tracking_config': {
+            'enable_tracking': True,        # 启用轨迹追踪
+            'debounce_frames': 5,          # 去抖帧数
+            'max_trail_points': 100,       # 最大轨迹点数
+            'trail_thickness': 3,          # 轨迹线粗细
+            'trail_alpha': 0.7,            # 轨迹透明度
+            # 命令行轨迹输出配置
+            'enable_console_output': True, # 启用命令行轨迹变化输出
+            'output_interval_frames': 3,   # 输出间隔帧数（回报率控制）
+            'movement_threshold': 5,       # 移动阈值（像素），小于此值不输出
+            'output_format': 'simple',       # 输出格式：'json' 或 'simple'
+        }
     },
     
     # V字手势
@@ -54,7 +74,7 @@ GESTURE_CONFIG = {
 # 手势类型定义
 GESTURE_TYPES = {
     'static_gestures': ['PeaceSign', 'ThumbsUp', 'ThumbsDown'],  # 静态手势列表
-    'dynamic_gestures': ['HandOpen'],  # 动态手势列表
+    'dynamic_gestures': ['HandOpen', 'HandClose'],  # 动态手势列表
     'confidence_threshold_for_update': 5.0  # 静态手势置信度变化阈值
 }
 
@@ -77,5 +97,7 @@ COLORS = {
     'text_secondary': (0, 0, 255),     # 红色
     'gesture_message': (0, 255, 0),    # 绿色
     'palm_info': (0, 255, 255),        # 青色
-    'fps_text': (255, 255, 255)        # 白色 - FPS文本颜色
+    'fps_text': (255, 255, 255),       # 白色 - FPS文本颜色
+    'fist_trail': (0, 255, 255),       # 青色 - 握拳轨迹颜色
+    'fist_center': (0, 0, 255),        # 红色 - 握拳时掌心颜色
 }

@@ -285,3 +285,109 @@ class HandUtils:
         
         # 如果距离小于阈值，认为拇指靠近掌心
         return distance_ratio < distance_threshold_percent
+    
+    @staticmethod
+    def draw_fist_trails(img, trail_points_dict: dict, fist_active_dict: dict, 
+                        trail_color=(0, 255, 255), center_color=(0, 0, 255), trail_thickness=3):
+        """
+        在图像上绘制握拳轨迹
+        Args:
+            img: 图像
+            trail_points_dict: 轨迹点字典 {hand_id: deque of points}
+            fist_active_dict: 握拳活跃状态字典 {hand_id: bool}
+            trail_color: 轨迹线颜色 (B, G, R)
+            center_color: 当前位置圆点颜色 (B, G, R)
+            trail_thickness: 轨迹线基础粗细
+        """
+        for hand_id, is_active in fist_active_dict.items():
+            if is_active and hand_id in trail_points_dict:
+                trail = list(trail_points_dict[hand_id])
+                
+                if len(trail) > 1:
+                    # 绘制轨迹线
+                    for i in range(1, len(trail)):
+                        # 计算透明度（newer points more opaque）
+                        alpha = i / len(trail)
+                        thickness = max(1, int(trail_thickness * alpha))
+                        
+                        cv2.line(img, trail[i-1], trail[i], trail_color, thickness)
+                
+                # 绘制当前位置
+                if trail:
+                    current_pos = trail[-1]
+                    cv2.circle(img, current_pos, 8, center_color, -1)
+                    cv2.circle(img, current_pos, 10, trail_color, 2)
+    
+    @staticmethod
+    def output_trail_change(hand_id: str, current_pos: Tuple[int, int], hand_type: str,
+                           last_output_positions: dict, output_frame_counters: dict,
+                           output_interval_frames: int, movement_threshold: float,
+                           output_format: str) -> bool:
+        """
+        输出轨迹变化到命令行
+        Args:
+            hand_id: 手部ID
+            current_pos: 当前位置 (x, y)
+            hand_type: 手部类型 (Left/Right)
+            last_output_positions: 上次输出位置字典 {hand_id: (x, y)}
+            output_frame_counters: 输出帧计数器字典 {hand_id: int}
+            output_interval_frames: 输出间隔帧数
+            movement_threshold: 移动阈值（像素）
+            output_format: 输出格式 ('json' 或 'simple')
+        Returns:
+            是否输出了轨迹变化
+        """
+        # 检查输出间隔
+        output_frame_counters[hand_id] = output_frame_counters.get(hand_id, 0) + 1
+        if output_frame_counters[hand_id] < output_interval_frames:
+            return False
+        
+        # 重置帧计数器
+        output_frame_counters[hand_id] = 0
+        
+        last_pos = last_output_positions.get(hand_id)
+        
+        if last_pos is not None:
+            # 计算移动距离
+            dx = current_pos[0] - last_pos[0]
+            dy = current_pos[1] - last_pos[1]
+            distance = (dx**2 + dy**2)**0.5
+            
+            # 检查是否超过移动阈值
+            if distance >= movement_threshold:
+                # 输出轨迹变化
+                if output_format == 'json':
+                    import json
+                    import time
+                    output_data = {
+                        'timestamp': time.time(),
+                        'hand_id': hand_id,
+                        'hand_type': hand_type,
+                        'position': {
+                            'x': current_pos[0],
+                            'y': current_pos[1]
+                        },
+                        'movement': {
+                            'dx': dx,
+                            'dy': dy,
+                            'distance': round(distance, 2)
+                        },
+                        'previous_position': {
+                            'x': last_pos[0],
+                            'y': last_pos[1]
+                        }
+                    }
+                    print(f"[TRAIL_OUTPUT] {json.dumps(output_data, separators=(',', ':'))}")
+                else:
+                    # 简单格式输出
+                    print(f"[TRAIL_OUTPUT] {hand_type}_{hand_id}: pos=({current_pos[0]},{current_pos[1]}) "
+                          f"move=({dx:+d},{dy:+d}) dist={distance:.1f}")
+                
+                # 更新上次输出位置
+                last_output_positions[hand_id] = current_pos
+                return True
+        else:
+            # 第一次输出，记录位置但不输出
+            last_output_positions[hand_id] = current_pos
+        
+        return False

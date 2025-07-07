@@ -107,6 +107,23 @@ class HandGestureApp:
             self.last_printed_gesture = None
             self.gesture_manager.on_all_hands_lost()
         
+        # 绘制握拳轨迹（在其他绘制之前）
+        hand_close_detector = self.gesture_manager.get_detector_by_name("HandClose")
+        if hand_close_detector and hasattr(hand_close_detector, 'get_trail_data_for_drawing'):
+            # 类型转换确保能访问方法
+            from gestures.dynamic.hand_close import HandCloseDetector
+            if isinstance(hand_close_detector, HandCloseDetector):
+                trail_data = hand_close_detector.get_trail_data_for_drawing()
+                if trail_data and hand_close_detector.enable_tracking:
+                    HandUtils.draw_fist_trails(
+                        img, 
+                        trail_data['trail_points'], 
+                        trail_data['fist_active'],
+                        config.COLORS['fist_trail'],
+                        config.COLORS['fist_center'],
+                        trail_data['trail_thickness']
+                    )
+        
         # 绘制手势消息
         if self.gesture_timer > 0:
             HandUtils.draw_gesture_message(img, self.gesture_message, config.COLORS['gesture_message'])

@@ -3,5 +3,6 @@
 """
 
 from .hand_open import HandOpenDetector
+from .hand_close import HandCloseDetector
 
-__all__ = ['HandOpenDetector']
+__all__ = ['HandOpenDetector', 'HandCloseDetector']

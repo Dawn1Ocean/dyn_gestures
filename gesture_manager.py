@@ -6,7 +6,8 @@ from typing import List, Dict, Any, Optional
 from gestures import (
     GestureDetector, 
     StaticGestureDetector,
-    HandOpenDetector, 
+    HandOpenDetector,
+    HandCloseDetector, 
     PeaceSignDetector,
     ThumbsDetector
 )
@@ -22,7 +23,20 @@ class GestureManager:
     def setup_default_detectors(self):
         """设置默认的手势检测器"""
         # 添加动态手势检测器
-        self.add_detector(HandOpenDetector())
+        hand_open_config = config.GESTURE_CONFIG['hand_open']
+        self.add_detector(HandOpenDetector(
+            variance_change_percent=hand_open_config['variance_change_percent'],
+            distance_multiplier=hand_open_config['distance_multiplier'],
+            history_length=hand_open_config['history_length']
+        ))
+        
+        hand_close_config = config.GESTURE_CONFIG['hand_close']
+        self.add_detector(HandCloseDetector(
+            variance_change_percent=hand_close_config['variance_change_percent'],
+            distance_multiplier=hand_close_config['distance_multiplier'],
+            history_length=hand_close_config['history_length'],
+            fist_hold_frames=hand_close_config['fist_hold_frames']
+        ))
         
         # 添加静态手势检测器
         peace_config = config.GESTURE_CONFIG['peace_sign']

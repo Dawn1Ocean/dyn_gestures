@@ -8,6 +8,8 @@ from .base import GestureDetector, StaticGestureDetector, DynamicGestureDetector
 # 导入动态手势检测器
 from .dynamic.hand_open import HandOpenDetector
 from .dynamic.hand_close import HandCloseDetector
+from .dynamic.hand_swipe import HandSwipeDetector
+from .dynamic.hand_flip import HandFlipDetector
 
 # 导入静态手势检测器
 from .static.peace_sign import PeaceSignDetector
@@ -19,6 +21,8 @@ __all__ = [
     'DynamicGestureDetector',
     'HandOpenDetector',
     'HandCloseDetector',
+    'HandSwipeDetector',
+    'HandFlipDetector',
     'PeaceSignDetector',
     'ThumbsDetector',
 ]

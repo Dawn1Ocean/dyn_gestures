@@ -79,7 +79,7 @@ class HandGestureApp:
         hands, img = self.detector.findHands(
             img, 
             draw=config.DISPLAY_CONFIG['show_landmarks'], 
-            flipType=not config.DISPLAY_CONFIG['flip_image']
+            flipType=config.DISPLAY_CONFIG['flip_image']
         )
         
         if hands:  

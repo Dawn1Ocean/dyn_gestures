@@ -77,7 +77,7 @@ class HandCloseDetector(DynamicGestureDetector):
         hand_history['distance_history'].append(current_distances)
         
         # 检查当前是否为握拳状态
-        current_is_fist = self._is_hand_closed(landmarks, current_distances)
+        current_is_fist = HandUtils.is_hand_closed(landmarks, current_distances)
         
         # 处理轨迹追踪（只有手势被触发后才记录轨迹）
         gesture_result = None
@@ -157,20 +157,6 @@ class HandCloseDetector(DynamicGestureDetector):
         closing_count = sum(1 for i, dist in enumerate(current_distances) 
                           if dist < baseline_distances[i] * self.distance_multiplier)
         return closing_count == 5  # 所有5根手指的距离都必须减少
-    
-    def _is_hand_closed(self, landmarks: List[List[int]], distances: List[float]) -> bool:
-        """判断手是否处于握拳状态"""
-        # 计算手掌基准长度
-        palm_base_length = HandUtils.calculate_palm_base_length(landmarks)
-        
-        if palm_base_length <= 0:
-            return False
-        
-        # 检查所有手指尖到掌心的距离是否都很小
-        max_allowed_distance = palm_base_length * 0.5  # 握拳时手指尖应该很接近掌心
-        close_fingers = sum(1 for dist in distances if dist < max_allowed_distance)
-        
-        return close_fingers == 5  # 所有5根手指都必须接近掌心
     
     def reset(self, hand_id: Optional[str] = None):
         """重置检测器状态"""

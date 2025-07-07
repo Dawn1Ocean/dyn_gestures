@@ -4,7 +4,7 @@
 
 import cv2
 import math
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 import numpy as np
 
 
@@ -391,3 +391,156 @@ class HandUtils:
             last_output_positions[hand_id] = current_pos
         
         return False
+    
+    @staticmethod
+    def detect_palm_back_orientation(landmarks: List[List[int]], hand_type: Optional[str] = None) -> str:
+        """
+        检测手心还是手背朝向摄像头
+        基于手指从左到右的排列顺序和左右手类型来判断
+        Args:
+            landmarks: 手部关键点列表
+            hand_type: 手的类型 ("Left" 或 "Right")，如果为None则自动检测
+        Returns:
+            "palm": 手心朝向摄像头
+            "back": 手背朝向摄像头  
+            "uncertain": 不确定
+        """
+        # 首先检查手是否向上且张开
+        if not HandUtils.is_hand_upward(landmarks) and not HandUtils.is_hand_open(landmarks):
+            return "uncertain"
+        
+        # 如果没有提供手的类型，则自动检测
+        if hand_type is None:
+            hand_type = HandUtils._detect_hand_type(landmarks)
+            if hand_type == "uncertain":
+                return "uncertain"
+        
+        # 获取手指尖的位置
+        thumb_tip = landmarks[4]    # 拇指尖
+        index_tip = landmarks[8]    # 食指尖
+        middle_tip = landmarks[12]  # 中指尖
+        ring_tip = landmarks[16]    # 无名指尖
+        pinky_tip = landmarks[20]   # 小指尖
+        
+        # 计算拇指相对于其他四指的位置
+        other_fingers_x = [index_tip[0], middle_tip[0], ring_tip[0], pinky_tip[0]]
+        avg_other_x = sum(other_fingers_x) / len(other_fingers_x)
+        thumb_relative_position = thumb_tip[0] - avg_other_x
+        
+        # 根据手的类型和拇指位置判断朝向
+        if hand_type == "Left":
+            # 左手：拇指在右边(positive)表示手心朝向，拇指在左边(negative)表示手背朝向
+            if thumb_relative_position > 15:  # 拇指明显在右边
+                return "palm"
+            elif thumb_relative_position < -15:  # 拇指明显在左边
+                return "back"
+            else:
+                return "uncertain"
+        else:  # Right hand
+            # 右手：拇指在左边(negative)表示手心朝向，拇指在右边(positive)表示手背朝向
+            if thumb_relative_position < -15:  # 拇指明显在左边
+                return "palm"
+            elif thumb_relative_position > 15:  # 拇指明显在右边
+                return "back"
+            else:
+                return "uncertain"
+            
+    @staticmethod
+    def is_hand_open(landmarks: List[List[int]], open_threshold: float = 0.5) -> bool:
+        """
+        检查手是否张开
+        Args:
+            landmarks: 手部关键点列表
+            open_threshold: 张开阈值（相对于手掌基准长度的比例）
+        Returns:
+            手是否张开
+        """
+        palm_center = HandUtils.calculate_palm_center(landmarks)
+        palm_base_length = HandUtils.calculate_palm_base_length(landmarks)
+        
+        if palm_base_length <= 0:
+            return False
+        
+        fingertip_distances = HandUtils.calculate_fingertip_distances(landmarks, palm_center)
+        
+        # 检查是否有足够多的手指远离掌心（张开状态）
+        open_fingers = sum(1 for dist in fingertip_distances if dist > palm_base_length * open_threshold)
+        
+        return open_fingers == 5
+    
+    @staticmethod
+    def is_hand_closed(landmarks: List[List[int]], distances: List[float]) -> bool:
+        """判断手是否处于握拳状态"""
+        # 计算手掌基准长度
+        palm_base_length = HandUtils.calculate_palm_base_length(landmarks)
+        
+        if palm_base_length <= 0:
+            return False
+        
+        # 检查所有手指尖到掌心的距离是否都很小
+        max_allowed_distance = palm_base_length * 0.5  # 握拳时手指尖应该很接近掌心
+        close_fingers = sum(1 for dist in distances if dist < max_allowed_distance)
+        
+        return close_fingers == 5  # 所有5根手指都必须接近掌心
+    
+    @staticmethod
+    def is_hand_upward(landmarks: List[List[int]]) -> bool:
+        """
+        检查手是否向上
+        Args:
+            landmarks: 手部关键点列表
+        Returns:
+            手是否向上
+        """
+        wrist = landmarks[0]
+        
+        # 检查手指尖的y坐标是否都小于手腕的y坐标
+        fingertips = [landmarks[i] for i in HandUtils.FINGERTIPS]
+        upward_fingers = sum(1 for tip in fingertips if tip[1] < wrist[1])
+        
+        return upward_fingers == 5
+    
+    @staticmethod
+    def _detect_hand_type(landmarks: List[List[int]]) -> str:
+        """
+        自动检测手的类型（左手或右手）
+        基于拇指与手腕的相对位置关系
+        Args:
+            landmarks: 手部关键点列表
+        Returns:
+            "Left", "Right", 或 "uncertain"
+        """
+        wrist = landmarks[0]
+        thumb_tip = landmarks[4]
+        thumb_mcp = landmarks[1]  # 拇指根部
+        index_mcp = landmarks[5]  # 食指根部
+        middle_mcp = landmarks[9] # 中指根部
+        ring_mcp = landmarks[13]  # 无名指根部
+        pinky_mcp = landmarks[17] # 小指根部
+        
+        # 计算手掌的中心线（手腕到中指根部）
+        palm_center_x = (wrist[0] + middle_mcp[0]) / 2
+        
+        # 计算拇指相对于手掌中心线的位置
+        thumb_offset = thumb_tip[0] - palm_center_x
+        
+        # 计算其他四指的平均x坐标
+        other_fingers_avg_x = (index_mcp[0] + middle_mcp[0] + ring_mcp[0] + pinky_mcp[0]) / 4
+        
+        # 拇指相对于其他手指的位置
+        thumb_vs_others = thumb_tip[0] - other_fingers_avg_x
+        
+        # 基于拇指的相对位置判断
+        # 如果拇指在手掌中心线右边且在其他手指右边，可能是左手
+        # 如果拇指在手掌中心线左边且在其他手指左边，可能是右手
+        
+        threshold = 20  # 像素阈值
+        
+        if thumb_vs_others > threshold:
+            # 拇指在其他手指右边，更可能是左手
+            return "Left"
+        elif thumb_vs_others < -threshold:
+            # 拇指在其他手指左边，更可能是右手
+            return "Right"
+        else:
+            return "uncertain"

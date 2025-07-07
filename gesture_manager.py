@@ -7,7 +7,9 @@ from gestures import (
     GestureDetector, 
     StaticGestureDetector,
     HandOpenDetector,
-    HandCloseDetector, 
+    HandCloseDetector,
+    HandSwipeDetector,
+    HandFlipDetector,
     PeaceSignDetector,
     ThumbsDetector
 )
@@ -36,6 +38,20 @@ class GestureManager:
             distance_multiplier=hand_close_config['distance_multiplier'],
             history_length=hand_close_config['history_length'],
             fist_hold_frames=hand_close_config['fist_hold_frames']
+        ))
+        
+        hand_swipe_config = config.GESTURE_CONFIG['hand_swipe']
+        self.add_detector(HandSwipeDetector(
+            min_distance_percent=hand_swipe_config['min_distance_percent'],
+            min_movement_frames=hand_swipe_config['min_movement_frames'],
+            history_length=hand_swipe_config['history_length']
+        ))
+        
+        hand_flip_config = config.GESTURE_CONFIG['hand_flip']
+        self.add_detector(HandFlipDetector(
+            max_movement_percent=hand_flip_config['max_movement_percent'],
+            min_flip_frames=hand_flip_config['min_flip_frames'],
+            history_length=hand_flip_config['history_length']
         ))
         
         # 添加静态手势检测器

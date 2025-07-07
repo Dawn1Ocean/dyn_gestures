@@ -23,13 +23,24 @@ class HandOpenDetector(DynamicGestureDetector):
         if hand_id not in self.history:
             self.history[hand_id] = {
                 'variance_history': deque(maxlen=self.history_length),
-                'distance_history': deque(maxlen=self.history_length)
+                'distance_history': deque(maxlen=self.history_length),
+                'initial_fist_detected': False  # 添加初始握拳状态标记
             }
         
         # 使用HandUtils中的通用方法计算
         current_variance = HandUtils.calculate_fingertip_variance(landmarks)
         palm_center = HandUtils.calculate_palm_center(landmarks)
         current_distances = HandUtils.calculate_fingertip_distances(landmarks, palm_center)
+        
+        # 检查初始握拳状态
+        is_currently_closed = HandUtils.is_hand_closed(landmarks, current_distances)
+        
+        # 如果还没有检测到初始握拳状态，先检测握拳
+        if not self.history[hand_id]['initial_fist_detected']:
+            if is_currently_closed:
+                self.history[hand_id]['initial_fist_detected'] = True
+            # 没有检测到初始握拳，不进行张开检测
+            return None
         
         # 添加到历史记录
         self.history[hand_id]['variance_history'].append(current_variance)
@@ -49,10 +60,10 @@ class HandOpenDetector(DynamicGestureDetector):
             
             # 计算变化
             variance_change_percent = ((current_variance - baseline_variance) / (baseline_variance + 1e-6)) * 100
-            hand_is_open = self._is_hand_open(current_distances, baseline_distances)
+            hand_is_open = HandUtils.is_hand_open(landmarks)
             
-            # 检查是否满足条件
-            if variance_change_percent > self.variance_change_percent and hand_is_open:
+            # 检查是否满足条件：从握拳状态变为张开状态
+            if variance_change_percent > self.variance_change_percent and hand_is_open and not is_currently_closed:
                 # 清空历史记录避免重复检测
                 self.reset(hand_id)
                 return {
@@ -61,7 +72,8 @@ class HandOpenDetector(DynamicGestureDetector):
                     'confidence': min(100, variance_change_percent),
                     'details': {
                         'variance_change': variance_change_percent,
-                        'all_fingers_open': hand_is_open
+                        'all_fingers_open': hand_is_open,
+                        'initial_fist_was_detected': True
                     }
                 }
         
@@ -74,15 +86,7 @@ class HandOpenDetector(DynamicGestureDetector):
         elif hand_id in self.history:
             self.history[hand_id]['variance_history'].clear()
             self.history[hand_id]['distance_history'].clear()
-    
-    def _is_hand_open(self, current_distances: List[float], baseline_distances: List[float]) -> bool:
-        """判断手是否张开"""
-        if not baseline_distances or len(baseline_distances) != 5:
-            return False
-        
-        exceeds_count = sum(1 for i, dist in enumerate(current_distances) 
-                          if dist > baseline_distances[i] * self.distance_multiplier)
-        return exceeds_count == 5
+            self.history[hand_id]['initial_fist_detected'] = False
     
     def get_display_message(self, gesture_result: Dict[str, Any]) -> str:
         """获取握拳到张开手势的显示消息"""

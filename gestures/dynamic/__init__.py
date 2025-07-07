@@ -4,5 +4,7 @@
 
 from .hand_open import HandOpenDetector
 from .hand_close import HandCloseDetector
+from .hand_swipe import HandSwipeDetector
+from .hand_flip import HandFlipDetector
 
-__all__ = ['HandOpenDetector', 'HandCloseDetector']
+__all__ = ['HandOpenDetector', 'HandCloseDetector', 'HandSwipeDetector', 'HandFlipDetector']

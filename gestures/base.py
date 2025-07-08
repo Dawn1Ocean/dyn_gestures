@@ -94,6 +94,48 @@ class StaticGestureDetector(GestureDetector):
 class DynamicGestureDetector(GestureDetector):
     """动态手势检测器基类"""
     
-    def __init__(self, name: str, history_length: int = 10):
+    def __init__(self, name: str, history_length: int = 10, cooldown_frames: int = 30):
         super().__init__(name)
         self.history_length = history_length
+        self.cooldown_frames = cooldown_frames  # 冷却期帧数
+        self.cooldown_counters = {}  # 存储每只手的冷却计数器 {hand_id: remaining_frames}
+    
+    def is_in_cooldown(self, hand_id: str) -> bool:
+        """
+        检查指定手是否在冷却期内
+        Args:
+            hand_id: 手部ID
+        Returns:
+            是否在冷却期内
+        """
+        if hand_id not in self.cooldown_counters:
+            return False
+        
+        # 减少冷却计数器
+        self.cooldown_counters[hand_id] = max(0, self.cooldown_counters[hand_id] - 1)
+        
+        # 如果冷却期结束，移除计数器
+        if self.cooldown_counters[hand_id] <= 0:
+            del self.cooldown_counters[hand_id]
+            return False
+        
+        return True
+    
+    def start_cooldown(self, hand_id: str):
+        """
+        为指定手开始冷却期
+        Args:
+            hand_id: 手部ID
+        """
+        self.cooldown_counters[hand_id] = self.cooldown_frames
+    
+    def reset_cooldown(self, hand_id: Optional[str] = None):
+        """
+        重置冷却期
+        Args:
+            hand_id: 手部ID，如果为None则重置所有
+        """
+        if hand_id is None:
+            self.cooldown_counters.clear()
+        elif hand_id in self.cooldown_counters:
+            del self.cooldown_counters[hand_id]

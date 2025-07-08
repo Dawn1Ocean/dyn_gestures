@@ -10,6 +10,7 @@ from gestures import (
     HandCloseDetector,
     HandSwipeDetector,
     HandFlipDetector,
+    TwoFingerSwipeDetector,
     FingerCountOneDetector,
     FingerCountTwoDetector,
     FingerCountThreeDetector,
@@ -31,7 +32,8 @@ class GestureManager:
         self.add_detector(HandOpenDetector(
             variance_change_percent=hand_open_config['variance_change_percent'],
             distance_multiplier=hand_open_config['distance_multiplier'],
-            history_length=hand_open_config['history_length']
+            history_length=hand_open_config['history_length'],
+            cooldown_frames=hand_open_config['cooldown_frames']
         ))
         
         hand_close_config = config.GESTURE_CONFIG['hand_close']
@@ -39,21 +41,33 @@ class GestureManager:
             variance_change_percent=hand_close_config['variance_change_percent'],
             distance_multiplier=hand_close_config['distance_multiplier'],
             history_length=hand_close_config['history_length'],
-            fist_hold_frames=hand_close_config['fist_hold_frames']
+            fist_hold_frames=hand_close_config['fist_hold_frames'],
+            cooldown_frames=hand_close_config['cooldown_frames']
         ))
         
         hand_swipe_config = config.GESTURE_CONFIG['hand_swipe']
         self.add_detector(HandSwipeDetector(
             min_distance_percent=hand_swipe_config['min_distance_percent'],
             min_movement_frames=hand_swipe_config['min_movement_frames'],
-            history_length=hand_swipe_config['history_length']
+            history_length=hand_swipe_config['history_length'],
+            cooldown_frames=hand_swipe_config['cooldown_frames']
+        ))
+        
+        two_finger_swipe_config = config.GESTURE_CONFIG['two_finger_swipe']
+        self.add_detector(TwoFingerSwipeDetector(
+            min_distance_percent=two_finger_swipe_config['min_distance_percent'],
+            min_movement_frames=two_finger_swipe_config['min_movement_frames'],
+            history_length=two_finger_swipe_config['history_length'],
+            finger_distance_threshold=two_finger_swipe_config['finger_distance_threshold'],
+            cooldown_frames=two_finger_swipe_config['cooldown_frames']
         ))
         
         hand_flip_config = config.GESTURE_CONFIG['hand_flip']
         self.add_detector(HandFlipDetector(
             max_movement_percent=hand_flip_config['max_movement_percent'],
             min_flip_frames=hand_flip_config['min_flip_frames'],
-            history_length=hand_flip_config['history_length']
+            history_length=hand_flip_config['history_length'],
+            cooldown_frames=hand_flip_config['cooldown_frames']
         ))
         
         # 添加静态手势检测器

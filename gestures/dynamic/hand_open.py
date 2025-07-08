@@ -12,13 +12,18 @@ from hand_utils import HandUtils
 class HandOpenDetector(DynamicGestureDetector):
     """握拳到张开手势检测器"""
     
-    def __init__(self, variance_change_percent: float = 50, distance_multiplier: float = 1.5, history_length: int = 10):
-        super().__init__("HandOpen", history_length)
+    def __init__(self, variance_change_percent: float = 50, distance_multiplier: float = 1.5, 
+                 history_length: int = 10, cooldown_frames: int = 30):
+        super().__init__("HandOpen", history_length, cooldown_frames)
         self.variance_change_percent = variance_change_percent
         self.distance_multiplier = distance_multiplier
     
     def detect(self, landmarks: List[List[int]], hand_id: str, hand_type: str) -> Optional[Dict[str, Any]]:
         """检测握拳到张开手势"""
+        # 检查是否在冷却期内
+        if self.is_in_cooldown(hand_id):
+            return None
+        
         # 初始化历史记录
         if hand_id not in self.history:
             self.history[hand_id] = {
@@ -64,6 +69,8 @@ class HandOpenDetector(DynamicGestureDetector):
             
             # 检查是否满足条件：从握拳状态变为张开状态
             if variance_change_percent > self.variance_change_percent and hand_is_open and not is_currently_closed:
+                # 开始冷却期
+                self.start_cooldown(hand_id)
                 # 清空历史记录避免重复检测
                 self.reset(hand_id)
                 return {

@@ -10,6 +10,7 @@ from .dynamic.hand_open import HandOpenDetector
 from .dynamic.hand_close import HandCloseDetector
 from .dynamic.hand_swipe import HandSwipeDetector
 from .dynamic.hand_flip import HandFlipDetector
+from .dynamic.two_finger_swipe import TwoFingerSwipeDetector
 
 # 导入静态手势检测器
 from .static.finger_count_one import FingerCountOneDetector
@@ -25,6 +26,7 @@ __all__ = [
     'HandCloseDetector',
     'HandSwipeDetector',
     'HandFlipDetector',
+    'TwoFingerSwipeDetector',
     'FingerCountOneDetector',
     'FingerCountTwoDetector',
     'FingerCountThreeDetector',

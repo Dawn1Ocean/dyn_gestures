@@ -409,12 +409,6 @@ class HandUtils:
         if not HandUtils.is_hand_upward(landmarks) and not HandUtils.is_hand_open(landmarks):
             return "uncertain"
         
-        # 如果没有提供手的类型，则自动检测
-        if hand_type is None:
-            hand_type = HandUtils._detect_hand_type(landmarks)
-            if hand_type == "uncertain":
-                return "uncertain"
-        
         # 获取手指尖的位置
         thumb_tip = landmarks[4]    # 拇指尖
         index_tip = landmarks[8]    # 食指尖
@@ -501,46 +495,24 @@ class HandUtils:
         return upward_fingers == 5
     
     @staticmethod
-    def _detect_hand_type(landmarks: List[List[int]]) -> str:
-        """
-        自动检测手的类型（左手或右手）
-        基于拇指与手腕的相对位置关系
-        Args:
-            landmarks: 手部关键点列表
-        Returns:
-            "Left", "Right", 或 "uncertain"
-        """
-        wrist = landmarks[0]
-        thumb_tip = landmarks[4]
-        thumb_mcp = landmarks[1]  # 拇指根部
-        index_mcp = landmarks[5]  # 食指根部
-        middle_mcp = landmarks[9] # 中指根部
-        ring_mcp = landmarks[13]  # 无名指根部
-        pinky_mcp = landmarks[17] # 小指根部
+    def check_two_finger_pose(landmarks: List[List[int]], palm_base_length: float, finger_distance_threshold: float) -> bool:
+        """检查是否为双指姿态（食指和中指并拢朝上，其他手指弯曲）"""
+        # 1. 检查食指和中指是否伸直且朝上
+        index_extended = HandUtils.is_finger_extended(landmarks, 8, 6, 5, 0.6)
+        middle_extended = HandUtils.is_finger_extended(landmarks, 12, 10, 9, 0.6)
         
-        # 计算手掌的中心线（手腕到中指根部）
-        palm_center_x = (wrist[0] + middle_mcp[0]) / 2
+        # 2. 检查无名指和小指是否弯曲
+        ring_bent = HandUtils.is_finger_bent(landmarks, 16, 14)
+        pinky_bent = HandUtils.is_finger_bent(landmarks, 20, 18)
         
-        # 计算拇指相对于手掌中心线的位置
-        thumb_offset = thumb_tip[0] - palm_center_x
+        # 3. 检查拇指是否靠近掌心
+        thumb_close_to_palm = HandUtils.is_thumb_close_to_palm(landmarks, 0.5)
         
-        # 计算其他四指的平均x坐标
-        other_fingers_avg_x = (index_mcp[0] + middle_mcp[0] + ring_mcp[0] + pinky_mcp[0]) / 4
-        
-        # 拇指相对于其他手指的位置
-        thumb_vs_others = thumb_tip[0] - other_fingers_avg_x
-        
-        # 基于拇指的相对位置判断
-        # 如果拇指在手掌中心线右边且在其他手指右边，可能是左手
-        # 如果拇指在手掌中心线左边且在其他手指左边，可能是右手
-        
-        threshold = 20  # 像素阈值
-        
-        if thumb_vs_others > threshold:
-            # 拇指在其他手指右边，更可能是左手
-            return "Left"
-        elif thumb_vs_others < -threshold:
-            # 拇指在其他手指左边，更可能是右手
-            return "Right"
-        else:
-            return "uncertain"
+        # 4. 检查食指和中指是否并拢（距离很近）
+        index_tip = landmarks[8]
+        middle_tip = landmarks[12]
+        finger_distance = HandUtils.calculate_distance(index_tip, middle_tip)
+        fingers_close = finger_distance < palm_base_length * finger_distance_threshold
+
+        return (index_extended and middle_extended and ring_bent and
+                pinky_bent and thumb_close_to_palm and fingers_close)

@@ -2,7 +2,6 @@
 手掌翻转手势检测器 - 动态手势
 """
 
-import numpy as np
 from collections import deque
 from typing import List, Dict, Any, Optional, Tuple
 from ..base import DynamicGestureDetector
@@ -13,13 +12,17 @@ class HandFlipDetector(DynamicGestureDetector):
     """手掌翻转手势检测器"""
     
     def __init__(self, max_movement_percent: float = 0.15, min_flip_frames: int = 10, 
-                 history_length: int = 20):
-        super().__init__("HandFlip", history_length)
+                 history_length: int = 20, cooldown_frames: int = 30):
+        super().__init__("HandFlip", history_length, cooldown_frames)
         self.max_movement_percent = max_movement_percent  # 最大移动距离百分比（相对于手掌基准长度）
         self.min_flip_frames = min_flip_frames  # 翻转检测的最小帧数
         
     def detect(self, landmarks: List[List[int]], hand_id: str, hand_type: str) -> Optional[Dict[str, Any]]:
         """检测手掌翻转手势"""
+        # 检查是否在冷却期内
+        if self.is_in_cooldown(hand_id):
+            return None
+        
         # 初始化历史记录
         if hand_id not in self.history:
             self.history[hand_id] = {
@@ -36,10 +39,10 @@ class HandFlipDetector(DynamicGestureDetector):
         # 计算当前手掌中心、基准长度和朝向
         palm_center = HandUtils.calculate_palm_center(landmarks)
         palm_base_length = HandUtils.calculate_palm_base_length(landmarks)
-        hand_orientation = self._calculate_hand_orientation(landmarks, hand_type)
+        hand_orientation = HandUtils.detect_palm_back_orientation(landmarks, hand_type)
         
         # 检查手是否张开
-        is_hand_open = self._is_hand_open(landmarks)
+        is_hand_open = HandUtils.is_hand_open(landmarks)
         
         # 添加到历史记录
         hand_history['palm_positions'].append(palm_center)
@@ -50,33 +53,13 @@ class HandFlipDetector(DynamicGestureDetector):
         if len(hand_history['palm_positions']) >= self.min_flip_frames:
             result = self._analyze_flip_gesture(hand_history, palm_base_length, hand_type)
             if result:
+                # 开始冷却期
+                self.start_cooldown(hand_id)
                 # 重置历史以避免重复检测
                 self.reset(hand_id)
                 return result
         
         return None
-    
-    def _is_hand_open(self, landmarks: List[List[int]]) -> bool:
-        """判断手是否张开（五指张开）"""
-        # 计算手掌中心和基准长度
-        palm_center = HandUtils.calculate_palm_center(landmarks)
-        palm_base_length = HandUtils.calculate_palm_base_length(landmarks)
-        
-        if palm_base_length <= 0:
-            return False
-        
-        # 计算所有手指尖到掌心的距离
-        current_distances = HandUtils.calculate_fingertip_distances(landmarks, palm_center)
-        
-        # 检查所有五根手指是否都远离掌心（张开状态）
-        open_threshold = palm_base_length * 0.6  # 张开时手指尖应该远离掌心
-        open_fingers = sum(1 for dist in current_distances if dist > open_threshold)
-        
-        return open_fingers == 5  # 必须所有五根手指都张开
-    
-    def _calculate_hand_orientation(self, landmarks: List[List[int]], hand_type: str) -> str:
-        """计算手掌朝向（手心还是手背朝向摄像头）"""
-        return HandUtils.detect_palm_back_orientation(landmarks, hand_type)
     
     def _analyze_flip_gesture(self, hand_history: dict, palm_base_length: float, 
                             hand_type: str) -> Optional[Dict[str, Any]]:
@@ -198,18 +181,6 @@ class HandFlipDetector(DynamicGestureDetector):
         
         return None
     
-    def _calculate_angle_difference(self, angle1: float, angle2: float) -> float:
-        """计算两个角度之间的差异（考虑360度环绕）"""
-        diff = angle2 - angle1
-        
-        # 处理角度环绕
-        if diff > 180:
-            diff -= 360
-        elif diff < -180:
-            diff += 360
-            
-        return diff
-    
     def _calculate_confidence(self, positions: List[Tuple[int, int]], 
                             orientations: List[str], open_states: List[bool],
                             flip_type: str, palm_base_length: float) -> float:
@@ -242,27 +213,6 @@ class HandFlipDetector(DynamicGestureDetector):
             base_confidence += 5
         
         return min(100, base_confidence)
-    
-    def _calculate_orientation_smoothness(self, orientations: List[float]) -> float:
-        """计算朝向变化的平滑性"""
-        if len(orientations) < 3:
-            return 1.0
-        
-        # 计算相邻角度差异的标准差
-        angle_diffs = []
-        for i in range(1, len(orientations)):
-            diff = self._calculate_angle_difference(orientations[i-1], orientations[i])
-            angle_diffs.append(abs(diff))
-        
-        if not angle_diffs:
-            return 1.0
-        
-        # 平滑性 = 1 - (标准差 / 最大可能标准差)
-        std_dev = float(np.std(angle_diffs))
-        max_std = 90  # 假设最大标准差
-        smoothness = max(0.0, 1.0 - (std_dev / max_std))
-        
-        return float(smoothness)
     
     def _calculate_orientation_consistency(self, orientations: List[str]) -> float:
         """计算朝向变化的一致性"""
@@ -320,7 +270,6 @@ class HandFlipDetector(DynamicGestureDetector):
         """获取手掌翻转手势的显示消息"""
         hand_type = gesture_result['hand_type']
         details = gesture_result.get('details', {})
-        flip_type = details.get('flip_type', 'unknown')
         flip_description = details.get('flip_description', 'unknown')
         movement_percent = details.get('movement_percent', 0)
         return f"{hand_type} Hand: {flip_description} ({movement_percent:.1f}%)"

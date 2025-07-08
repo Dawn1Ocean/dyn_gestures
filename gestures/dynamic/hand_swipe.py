@@ -12,13 +12,17 @@ class HandSwipeDetector(DynamicGestureDetector):
     """手左右挥动手势检测器"""
     
     def __init__(self, min_distance_percent: float = 0.3, min_movement_frames: int = 8, 
-                 history_length: int = 15):
-        super().__init__("HandSwipe", history_length)
+                 history_length: int = 15, cooldown_frames: int = 30):
+        super().__init__("HandSwipe", history_length, cooldown_frames)
         self.min_distance_percent = min_distance_percent  # 最小移动距离百分比（相对于手掌基准长度）
         self.min_movement_frames = min_movement_frames  # 最小连续移动帧数
         
     def detect(self, landmarks: List[List[int]], hand_id: str, hand_type: str) -> Optional[Dict[str, Any]]:
         """检测手左右挥动手势"""
+        # 检查是否在冷却期内
+        if self.is_in_cooldown(hand_id):
+            return None
+        
         # 初始化历史记录
         if hand_id not in self.history:
             self.history[hand_id] = {
@@ -50,6 +54,8 @@ class HandSwipeDetector(DynamicGestureDetector):
                 # 分析移动模式
                 result = self._analyze_swipe_movement(hand_history, palm_base_length, hand_type)
                 if result:
+                    # 开始冷却期
+                    self.start_cooldown(hand_id)
                     # 重置历史以避免重复检测
                     self.reset(hand_id)
                     return result

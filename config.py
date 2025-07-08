@@ -23,7 +23,8 @@ GESTURE_CONFIG = {
     'hand_open': {
         'history_length': 10,
         'variance_change_percent': 50,
-        'distance_multiplier': 1.5
+        'distance_multiplier': 1.5,
+        'cooldown_frames': 20  # 冷却期帧数
     },
     
     # 张开到握拳手势
@@ -32,6 +33,14 @@ GESTURE_CONFIG = {
         'variance_change_percent': 40,
         'distance_multiplier': 0.7,
         'fist_hold_frames': 30,  # 握拳状态需要保持的帧数
+        'cooldown_frames': 30,   # 冷却期帧数
+        # 抗抖动和稳定性配置
+        'jitter_tolerance_frames': 3,    # 允许连续多少帧的误判而不重置状态
+        'trajectory_smoothing': {
+            'enable_smoothing': True,     # 启用轨迹平滑
+            'smoothing_window': 5,        # 平滑窗口大小（点数）
+            'smoothing_weight': 0.3,      # 新位置权重（低通滤波器系数）
+        },
         'tracking_config': {
             'enable_tracking': True,        # 启用轨迹追踪
             'debounce_frames': 5,          # 去抖帧数
@@ -50,14 +59,25 @@ GESTURE_CONFIG = {
     'hand_swipe': {
         'history_length': 15,
         'min_distance_percent': 0.5,      # 最小移动距离百分比（相对于手掌基准长度）
-        'min_movement_frames': 15           # 最小连续移动帧数
+        'min_movement_frames': 15,         # 最小连续移动帧数
+        'cooldown_frames': 10              # 冷却期帧数
+    },
+    
+    # 双指滑动手势
+    'two_finger_swipe': {
+        'history_length': 12,
+        'min_distance_percent': 0.2,      # 降低最小移动距离百分比
+        'min_movement_frames': 6,          # 降低最小连续移动帧数
+        'finger_distance_threshold': 0.25, # 放宽食指中指并拢阈值
+        'cooldown_frames': 20              # 冷却期帧数
     },
     
     # 手掌翻转手势
     'hand_flip': {
         'history_length': 20,
         'max_movement_percent': 0.15,      # 最大移动距离百分比（相对于手掌基准长度）
-        'min_flip_frames': 10              # 翻转检测的最小帧数
+        'min_flip_frames': 10,             # 翻转检测的最小帧数
+        'cooldown_frames': 30              # 冷却期帧数
     },
     
     # 数字一手势

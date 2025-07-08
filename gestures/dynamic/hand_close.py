@@ -14,14 +14,24 @@ class HandCloseDetector(DynamicGestureDetector):
     """张开到握拳手势检测器，支持轨迹追踪"""
     
     def __init__(self, variance_change_percent: float = 40, distance_multiplier: float = 0.7, 
-                 history_length: int = 10, fist_hold_frames: int = 10):
-        super().__init__("HandClose", history_length)
+                 history_length: int = 10, fist_hold_frames: int = 10, cooldown_frames: int = 30):
+        super().__init__("HandClose", history_length, cooldown_frames)
         self.variance_change_percent = variance_change_percent  # 方差减少的百分比阈值
         self.distance_multiplier = distance_multiplier  # 距离减少的倍数
         self.fist_hold_frames = fist_hold_frames  # 握拳状态需要保持的帧数
         
+        # 抗抖动配置
+        gesture_config = config.GESTURE_CONFIG['hand_close']
+        self.jitter_tolerance_frames = gesture_config.get('jitter_tolerance_frames', 3)
+        
+        # 轨迹平滑配置
+        smoothing_config = gesture_config.get('trajectory_smoothing', {})
+        self.enable_smoothing = smoothing_config.get('enable_smoothing', True)
+        self.smoothing_window = smoothing_config.get('smoothing_window', 5)
+        self.smoothing_weight = smoothing_config.get('smoothing_weight', 0.3)
+        
         # 轨迹追踪配置
-        tracking_config = config.GESTURE_CONFIG['hand_close']['tracking_config']
+        tracking_config = gesture_config['tracking_config']
         self.enable_tracking = tracking_config['enable_tracking']
         self.debounce_frames = tracking_config['debounce_frames']
         self.max_trail_points = tracking_config['max_trail_points']
@@ -39,12 +49,23 @@ class HandCloseDetector(DynamicGestureDetector):
         self.debounce_counters = {}  # {hand_id: int} - 去抖计数器
         self.gesture_triggered = {}  # {hand_id: bool} - 手势是否已被触发，用于控制轨迹显示
         
+        # 轨迹平滑相关
+        self.smoothed_positions = {}  # {hand_id: (x, y)} - 平滑后的位置
+        self.position_history = {}    # {hand_id: deque} - 位置历史用于窗口平滑
+        
+        # 抗抖动相关
+        self.jitter_counters = {}     # {hand_id: int} - 抖动容忍计数器
+        
         # 命令行输出相关
         self.last_output_positions = {}  # {hand_id: (x, y)} - 上次输出的位置
         self.output_frame_counters = {}  # {hand_id: int} - 输出帧计数器
     
     def detect(self, landmarks: List[List[int]], hand_id: str, hand_type: str) -> Optional[Dict[str, Any]]:
         """检测张开到握拳手势，支持轨迹追踪"""
+        # 检查是否在冷却期内
+        if self.is_in_cooldown(hand_id):
+            return None
+        
         # 初始化历史记录
         if hand_id not in self.history:
             self.history[hand_id] = {
@@ -61,6 +82,11 @@ class HandCloseDetector(DynamicGestureDetector):
             self.fist_active[hand_id] = False
             self.debounce_counters[hand_id] = 0
             self.gesture_triggered[hand_id] = False
+            # 初始化轨迹平滑相关
+            self.smoothed_positions[hand_id] = None
+            self.position_history[hand_id] = deque(maxlen=self.smoothing_window)
+            # 初始化抗抖动相关
+            self.jitter_counters[hand_id] = 0
             # 初始化命令行输出相关
             self.last_output_positions[hand_id] = None
             self.output_frame_counters[hand_id] = 0
@@ -112,6 +138,9 @@ class HandCloseDetector(DynamicGestureDetector):
             # 已检测到闭合动作，现在检查握拳状态是否持续
             if current_is_fist:
                 hand_history['fist_frames'] += 1
+                # 重置抖动计数器
+                self.jitter_counters[hand_id] = 0
+                
                 if hand_history['fist_frames'] >= self.fist_hold_frames:
                     # 握拳状态持续足够长时间，触发手势
                     confidence = min(100, 70 + hand_history['fist_frames'])
@@ -125,6 +154,9 @@ class HandCloseDetector(DynamicGestureDetector):
                     # 重置状态但保持轨迹追踪
                     self._reset_detection_only(hand_id)
                     
+                    # 开始冷却期
+                    self.start_cooldown(hand_id)
+                    
                     gesture_result = {
                         'gesture': 'HandClose',
                         'hand_type': hand_type,
@@ -137,11 +169,19 @@ class HandCloseDetector(DynamicGestureDetector):
                         }
                     }
             else:
-                # 失去握拳状态，重置
-                # print(f"[DEBUG] 失去握拳状态，重置检测")
-                hand_history['closing_detected'] = False
-                hand_history['fist_state'] = False
-                hand_history['fist_frames'] = 0
+                # 失去握拳状态，使用抗抖动逻辑
+                self.jitter_counters[hand_id] += 1
+                
+                if self.jitter_counters[hand_id] >= self.jitter_tolerance_frames:
+                    # 抖动容忍时间到，重置检测
+                    # print(f"[DEBUG] 抖动容忍时间到，重置检测 (连续{self.jitter_counters[hand_id]}帧)")
+                    hand_history['closing_detected'] = False
+                    hand_history['fist_state'] = False
+                    hand_history['fist_frames'] = 0
+                    self.jitter_counters[hand_id] = 0
+                # else:
+                    # print(f"[DEBUG] 抖动容忍中，计数器: {self.jitter_counters[hand_id]}/{self.jitter_tolerance_frames}")
+                    # 在容忍期内，保持当前状态
         
         # 处理轨迹追踪（在状态机逻辑之后）
         self._update_tracking(hand_id, palm_center, current_is_fist, hand_type)
@@ -167,6 +207,11 @@ class HandCloseDetector(DynamicGestureDetector):
             self.fist_active.clear()
             self.debounce_counters.clear()
             self.gesture_triggered.clear()
+            # 清空轨迹平滑相关
+            self.smoothed_positions.clear()
+            self.position_history.clear()
+            # 清空抗抖动相关
+            self.jitter_counters.clear()
             # 清空命令行输出相关
             self.last_output_positions.clear()
             self.output_frame_counters.clear()
@@ -184,11 +229,15 @@ class HandCloseDetector(DynamicGestureDetector):
                 self.fist_active[hand_id] = False
                 self.debounce_counters[hand_id] = 0
                 self.gesture_triggered[hand_id] = False
+                # 清空该手的轨迹平滑相关
+                self._reset_smoothing_state(hand_id)
+                # 清空该手的抗抖动相关
+                self.jitter_counters[hand_id] = 0
                 # 清空该手的命令行输出相关
                 self._reset_console_output(hand_id)
     
     def _reset_detection_only(self, hand_id: str):
-        """只重置检测状态，保持轨迹追踪"""
+        """只重置检测状态，保持轨迹追踪和平滑状态"""
         if hand_id in self.history:
             self.history[hand_id] = {
                 'variance_history': deque(maxlen=self.history_length),
@@ -197,9 +246,11 @@ class HandCloseDetector(DynamicGestureDetector):
                 'fist_frames': 0,
                 'closing_detected': False
             }
+            # 重置抗抖动计数器
+            self.jitter_counters[hand_id] = 0
     
     def _update_tracking(self, hand_id: str, palm_center: Tuple[int, int], current_is_fist: bool, hand_type: str = "Unknown"):
-        """更新轨迹追踪状态"""
+        """更新轨迹追踪状态，支持轨迹平滑"""
         if not self.enable_tracking:
             return
         
@@ -219,14 +270,17 @@ class HandCloseDetector(DynamicGestureDetector):
                 self._reset_console_output(hand_id)
                 print(f"[TRACKING] 开始显示 {hand_id} 的握拳轨迹")
             
-            # 添加当前位置到轨迹
-            self.trail_points[hand_id].append(palm_center)
+            # 应用轨迹平滑
+            smoothed_center = self._apply_trajectory_smoothing(hand_id, palm_center)
+            
+            # 添加平滑后的位置到轨迹
+            self.trail_points[hand_id].append(smoothed_center)
             self.debounce_counters[hand_id] = 0
             
-            # 输出轨迹变化到命令行
+            # 输出轨迹变化到命令行（使用平滑后的位置）
             if self.enable_console_output:
                 HandUtils.output_trail_change(
-                    hand_id, palm_center, hand_type,
+                    hand_id, smoothed_center, hand_type,
                     self.last_output_positions, self.output_frame_counters,
                     self.output_interval_frames, self.movement_threshold,
                     self.output_format
@@ -244,9 +298,44 @@ class HandCloseDetector(DynamicGestureDetector):
                     self.trail_points[hand_id].clear()
                     self.debounce_counters[hand_id] = 0
                     self.gesture_triggered[hand_id] = False  # 重置手势触发状态
+                    # 重置轨迹平滑状态
+                    self._reset_smoothing_state(hand_id)
                     # 重置命令行输出状态
                     self._reset_console_output(hand_id)
                     print(f"[TRACKING] 停止追踪 {hand_id} 的握拳轨迹，清除显示")
+    
+    def _apply_trajectory_smoothing(self, hand_id: str, new_position: Tuple[int, int]) -> Tuple[int, int]:
+        """应用轨迹平滑算法"""
+        if not self.enable_smoothing:
+            return new_position
+        
+        # 添加新位置到历史记录
+        self.position_history[hand_id].append(new_position)
+        
+        # 如果这是第一个位置，直接返回
+        if self.smoothed_positions[hand_id] is None:
+            self.smoothed_positions[hand_id] = new_position
+            return new_position
+        
+        # 使用低通滤波器进行平滑
+        prev_x, prev_y = self.smoothed_positions[hand_id]
+        new_x, new_y = new_position
+        
+        # 应用加权平均
+        smoothed_x = int(prev_x * (1 - self.smoothing_weight) + new_x * self.smoothing_weight)
+        smoothed_y = int(prev_y * (1 - self.smoothing_weight) + new_y * self.smoothing_weight)
+        
+        smoothed_position = (smoothed_x, smoothed_y)
+        self.smoothed_positions[hand_id] = smoothed_position
+        
+        return smoothed_position
+    
+    def _reset_smoothing_state(self, hand_id: str):
+        """重置轨迹平滑状态"""
+        if hand_id in self.smoothed_positions:
+            self.smoothed_positions[hand_id] = None
+        if hand_id in self.position_history:
+            self.position_history[hand_id].clear()
     
     def get_tracking_status(self) -> Dict[str, Dict]:
         """获取所有手的追踪状态"""
@@ -255,7 +344,10 @@ class HandCloseDetector(DynamicGestureDetector):
                 'active': self.fist_active.get(hand_id, False),
                 'trail_points': list(self.trail_points.get(hand_id, [])),
                 'debounce_counter': self.debounce_counters.get(hand_id, 0),
-                'gesture_triggered': self.gesture_triggered.get(hand_id, False)
+                'gesture_triggered': self.gesture_triggered.get(hand_id, False),
+                'smoothed_position': self.smoothed_positions.get(hand_id),
+                'jitter_counter': self.jitter_counters.get(hand_id, 0),
+                'smoothing_enabled': self.enable_smoothing
             }
             for hand_id in self.trail_points.keys()
         }

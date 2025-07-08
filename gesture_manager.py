@@ -10,7 +10,9 @@ from gestures import (
     HandCloseDetector,
     HandSwipeDetector,
     HandFlipDetector,
-    PeaceSignDetector,
+    FingerCountOneDetector,
+    FingerCountTwoDetector,
+    FingerCountThreeDetector,
     ThumbsDetector
 )
 import config
@@ -55,10 +57,22 @@ class GestureManager:
         ))
         
         # 添加静态手势检测器
-        peace_config = config.GESTURE_CONFIG['peace_sign']
-        self.add_detector(PeaceSignDetector(
-            distance_threshold_percent=peace_config['distance_threshold_percent'],
-            required_frames=peace_config['required_frames']
+        finger_one_config = config.GESTURE_CONFIG['finger_count_one']
+        self.add_detector(FingerCountOneDetector(
+            distance_threshold_percent=finger_one_config['distance_threshold_percent'],
+            required_frames=finger_one_config['required_frames']
+        ))
+        
+        finger_two_config = config.GESTURE_CONFIG['finger_count_two']
+        self.add_detector(FingerCountTwoDetector(
+            distance_threshold_percent=finger_two_config['distance_threshold_percent'],
+            required_frames=finger_two_config['required_frames']
+        ))
+        
+        finger_three_config = config.GESTURE_CONFIG['finger_count_three']
+        self.add_detector(FingerCountThreeDetector(
+            distance_threshold_percent=finger_three_config['distance_threshold_percent'],
+            required_frames=finger_three_config['required_frames']
         ))
         
         thumbs_up_config = config.GESTURE_CONFIG['thumbs_up']

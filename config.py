@@ -60,8 +60,20 @@ GESTURE_CONFIG = {
         'min_flip_frames': 10              # 翻转检测的最小帧数
     },
     
-    # V字手势
-    'peace_sign': {
+    # 数字一手势
+    'finger_count_one': {
+        'distance_threshold_percent': 0.6,  # 手指伸展阈值（相对于手掌基准长度）
+        'required_frames': 15  # 需要连续检测的帧数
+    },
+    
+    # 数字二手势
+    'finger_count_two': {
+        'distance_threshold_percent': 0.6,  # 手指伸展阈值（相对于手掌基准长度）
+        'required_frames': 15  # 需要连续检测的帧数
+    },
+    
+    # 数字三手势
+    'finger_count_three': {
         'distance_threshold_percent': 0.6,  # 手指伸展阈值（相对于手掌基准长度）
         'required_frames': 15  # 需要连续检测的帧数
     },
@@ -87,7 +99,7 @@ GESTURE_CONFIG = {
 
 # 手势类型定义
 GESTURE_TYPES = {
-    'static_gestures': ['PeaceSign', 'ThumbsUp', 'ThumbsDown'],  # 静态手势列表
+    'static_gestures': ['FingerCountOne', 'FingerCountTwo', 'FingerCountThree', 'ThumbsUp', 'ThumbsDown'],  # 静态手势列表
     'dynamic_gestures': ['HandOpen', 'HandClose', 'HandSwipe', 'HandFlip'],  # 动态手势列表
     'confidence_threshold_for_update': 5.0  # 静态手势置信度变化阈值
 }

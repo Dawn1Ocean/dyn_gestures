@@ -16,8 +16,9 @@ class ThumbsDetector(StaticGestureDetector):
                  thumb_angle_threshold: float = 30.0,
                  thumb_isolation_threshold: float = 0.6,  # 大拇指与其他手指PIP的最小距离阈值
                  required_frames: int = 15,
+                 debounce_frames: int = 5,
                  type: str = "ThumbsUp"):
-        super().__init__(type, required_frames)
+        super().__init__(type, required_frames, debounce_frames)
         self.type = type  # 手势类型
         self.thumb_distance_threshold = thumb_distance_threshold      # 大拇指距离掌心阈值
         self.other_fingers_threshold = other_fingers_threshold        # 其他手指距离掌心阈值
@@ -115,8 +116,8 @@ class ThumbsDetector(StaticGestureDetector):
                     }
                 }
         else:
-            # 如果不满足基础条件，重置该手的检测历史
-            self.reset_detection_history(hand_id)
+            # 如果不满足基础条件，不要直接重置，让手势管理器处理结束逻辑
+            pass
         
         return None
     

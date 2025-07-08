@@ -165,6 +165,7 @@ class HandCloseDetector(DynamicGestureDetector):
                         'hand_type': hand_type,
                         'confidence': confidence,
                         'details': {
+                            'tag': 'start',
                             'description': '张开到握拳',
                             'fist_hold_frames': hand_history['fist_frames'],
                             'required_frames': self.fist_hold_frames,
@@ -187,7 +188,11 @@ class HandCloseDetector(DynamicGestureDetector):
                     # 在容忍期内，保持当前状态
         
         # 处理轨迹追踪（在状态机逻辑之后）
-        self._update_tracking(hand_id, palm_center, current_is_fist, hand_type)
+        trail_end_result = self._update_tracking(hand_id, palm_center, current_is_fist, hand_type)
+        
+        # 如果有轨迹结束信息，返回它
+        if trail_end_result:
+            return trail_end_result
         
         return gesture_result
     
@@ -252,14 +257,14 @@ class HandCloseDetector(DynamicGestureDetector):
             # 重置抗抖动计数器
             self.jitter_counters[hand_id] = 0
     
-    def _update_tracking(self, hand_id: str, palm_center: Tuple[int, int], current_is_fist: bool, hand_type: str = "Unknown"):
-        """更新轨迹追踪状态，支持轨迹平滑"""
+    def _update_tracking(self, hand_id: str, palm_center: Tuple[int, int], current_is_fist: bool, hand_type: str = "Unknown") -> Optional[Dict[str, Any]]:
+        """更新轨迹追踪状态，支持轨迹平滑，返回轨迹结束信息"""
         if not self.enable_tracking:
-            return
+            return None
         
         # 只有手势被触发后才开始追踪
         if not self.gesture_triggered.get(hand_id, False):
-            return
+            return None
         
         was_active = self.fist_active.get(hand_id, False)
         
@@ -302,6 +307,15 @@ class HandCloseDetector(DynamicGestureDetector):
                 self.debounce_counters[hand_id] += 1
                 
                 if self.debounce_counters[hand_id] >= self.debounce_frames:
+                    # 计算轨迹的起始和结束位置，用于计算位移
+                    trail_points = list(self.trail_points[hand_id])
+                    dx, dy = 0, 0
+                    if len(trail_points) >= 2:
+                        start_pos = trail_points[0]
+                        end_pos = trail_points[-1]
+                        dx = end_pos[0] - start_pos[0]
+                        dy = end_pos[1] - start_pos[1]
+                    
                     # 去抖时间到，停止追踪并清除轨迹
                     self.fist_active[hand_id] = False
                     self.trail_points[hand_id].clear()
@@ -317,6 +331,20 @@ class HandCloseDetector(DynamicGestureDetector):
                     output_tracking_status(hand_id, f"停止追踪握拳轨迹")
                     
                     print(f"[TRACKING] 停止追踪 {hand_id} 的握拳轨迹，清除显示")
+                    
+                    # 返回轨迹结束信息
+                    return {
+                        'gesture': 'hand_close',
+                        'hand_type': hand_type,
+                        'confidence': 100,
+                        'details': {
+                            'tag': 'end',
+                            'dx': dx,
+                            'dy': dy
+                        }
+                    }
+        
+        return None
     
     def _apply_trajectory_smoothing(self, hand_id: str, new_position: Tuple[int, int]) -> Tuple[int, int]:
         """应用轨迹平滑算法"""

@@ -50,10 +50,13 @@ class GestureDetector(ABC):
 class StaticGestureDetector(GestureDetector):
     """静态手势检测器基类"""
     
-    def __init__(self, name: str, required_frames: int = 30):
+    def __init__(self, name: str, required_frames: int = 30, debounce_frames: int = 5):
         super().__init__(name)
         self.required_frames = required_frames  # 需要连续检测的帧数
+        self.debounce_frames = debounce_frames  # 去抖帧数
         self.detection_history = {}  # 存储每只手的检测历史 {hand_id: {'gesture': str, 'count': int, 'last_confidence': float}}
+        self.active_gestures = {}  # 存储每只手当前活跃的手势 {hand_id: {'gesture': str, 'confidence': float}}
+        self.debounce_counters = {}  # 存储每只手的去抖计数器 {hand_id: int}
     
     def check_continuous_detection(self, hand_id: str, gesture_name: str, confidence: float) -> bool:
         """
@@ -83,12 +86,72 @@ class StaticGestureDetector(GestureDetector):
         # 检查是否达到所需帧数
         return history['count'] >= self.required_frames
     
+    def check_gesture_end(self, hand_id: str, current_gesture: Optional[str]) -> Optional[Dict[str, Any]]:
+        """
+        检查手势是否结束，使用去抖机制
+        Args:
+            hand_id: 手部ID
+            current_gesture: 当前检测到的手势名称（可能为None）
+        Returns:
+            手势结束信息或None
+        """
+        if hand_id not in self.active_gestures:
+            return None
+        
+        active_gesture = self.active_gestures[hand_id]
+        
+        # 初始化去抖计数器
+        if hand_id not in self.debounce_counters:
+            self.debounce_counters[hand_id] = 0
+        
+        # 如果当前手势与活跃手势相同，重置去抖计数器
+        if current_gesture == active_gesture['gesture']:
+            self.debounce_counters[hand_id] = 0
+            return None
+        
+        # 如果当前手势与活跃手势不同，增加去抖计数器
+        self.debounce_counters[hand_id] += 1
+        
+        # 如果去抖计数器达到阈值，手势结束
+        if self.debounce_counters[hand_id] >= self.debounce_frames:
+            end_info = {
+                'gesture': active_gesture['gesture'],
+                'confidence': active_gesture['confidence'],
+                'details': {'tag': 'end'}
+            }
+            # 清除活跃手势记录和去抖计数器
+            del self.active_gestures[hand_id]
+            del self.debounce_counters[hand_id]
+            return end_info
+        
+        return None
+    
+    def mark_gesture_active(self, hand_id: str, gesture_name: str, confidence: float):
+        """
+        标记手势为活跃状态
+        Args:
+            hand_id: 手部ID
+            gesture_name: 手势名称
+            confidence: 置信度
+        """
+        self.active_gestures[hand_id] = {
+            'gesture': gesture_name,
+            'confidence': confidence
+        }
+    
     def reset_detection_history(self, hand_id: Optional[str] = None):
         """重置检测历史"""
         if hand_id is None:
             self.detection_history.clear()
-        elif hand_id in self.detection_history:
-            del self.detection_history[hand_id]
+            self.active_gestures.clear()
+            self.debounce_counters.clear()
+        else:
+            if hand_id in self.detection_history:
+                del self.detection_history[hand_id]
+            if hand_id in self.active_gestures:
+                del self.active_gestures[hand_id]
+            if hand_id in self.debounce_counters:
+                del self.debounce_counters[hand_id]
 
 
 class DynamicGestureDetector(GestureDetector):

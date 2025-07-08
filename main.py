@@ -41,7 +41,6 @@ class HandGestureApp:
         if config.DISPLAY_CONFIG.get('gesture_output', {}).get('enable_socket_output', True):
             self.socket_initialized = initialize_socket_client(
                 debug_mode=False, 
-                silent_mode=True
             )
         
         # 显示状态
@@ -56,6 +55,9 @@ class HandGestureApp:
         self.fps_start_time = time.time()
         self.current_fps = 0.0
         self.fps_update_interval = config.DISPLAY_CONFIG['fps_update_interval']
+        
+        # 手势状态追踪
+        self.previous_hands = {}  # {hand_id: hand_data}
     
     def update_fps(self):
         """更新FPS计算"""
@@ -88,9 +90,13 @@ class HandGestureApp:
             flipType=config.DISPLAY_CONFIG['flip_image']
         )
         
+        # 记录当前帧的手部ID
+        current_hand_ids = set()
+        
         if hands:  
             for i, hand in enumerate(hands):
                 hand_id = f"hand_{i}"
+                current_hand_ids.add(hand_id)
                 landmarks = hand["lmList"]
                 hand_type = hand["type"]
                 
@@ -106,11 +112,25 @@ class HandGestureApp:
                 
                 # 绘制手部信息
                 self.draw_hand_info(img, hand, i)
-        else:
-            # 没有检测到手时，重置手势管理器和输出管理器的历史
-            self.gesture_manager.on_all_hands_lost()
-            from gesture_output import reset_all_gesture_history
-            reset_all_gesture_history()
+                
+                # 更新手部记录
+                self.previous_hands[hand_id] = {
+                    'landmarks': landmarks,
+                    'hand_type': hand_type
+                }
+        
+        # 检测丢失的手部
+        lost_hand_ids = set(self.previous_hands.keys()) - current_hand_ids
+        for lost_hand_id in lost_hand_ids:
+            self.gesture_manager.on_hand_lost(lost_hand_id)
+            del self.previous_hands[lost_hand_id]
+        
+        # 如果没有检测到任何手
+        if not hands:
+            # 清空所有手部记录
+            if self.previous_hands:
+                self.gesture_manager.on_all_hands_lost()
+                self.previous_hands.clear()
         
         # 绘制握拳轨迹（在其他绘制之前）
         hand_close_detector = self.gesture_manager.get_detector_by_name("HandClose")

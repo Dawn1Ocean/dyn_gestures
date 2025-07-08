@@ -11,8 +11,8 @@ from ..base import StaticGestureDetector
 class FingerCountThreeDetector(StaticGestureDetector):
     """数字三手势检测器（食指、中指、无名指伸出且朝上）"""
     
-    def __init__(self, distance_threshold_percent: float = 0.6, required_frames: int = 30):
-        super().__init__("FingerCountThree", required_frames)
+    def __init__(self, distance_threshold_percent: float = 0.6, required_frames: int = 30, debounce_frames: int = 5):
+        super().__init__("FingerCountThree", required_frames, debounce_frames)
         self.distance_threshold_percent = distance_threshold_percent
     
     def detect(self, landmarks: List[List[int]], hand_id: str, hand_type: str) -> Optional[Dict[str, Any]]:
@@ -57,8 +57,8 @@ class FingerCountThreeDetector(StaticGestureDetector):
                     }
                 }
         else:
-            # 如果不满足基础条件，重置该手的检测历史
-            self.reset_detection_history(hand_id)
+            # 如果不满足基础条件，不要直接重置，让手势管理器处理结束逻辑
+            pass
         
         return None
     

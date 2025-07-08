@@ -14,7 +14,7 @@ CAMERA_FRAME_HEIGHT = 360       # 摄像头帧高度
 # 连接配置
 # ==============================================================================
 CONNECTION_MODE = 'socket'      # 连接模式：'socket' 或 'serial'
-SOCKET_HOST = '127.0.0.1'       # Socket 主机地址
+SOCKET_HOST = '192.168.31.247'       # Socket 主机地址
 SOCKET_PORT = 65432             # Socket 端口号
 
 # ==============================================================================
@@ -104,19 +104,22 @@ GESTURE_CONFIG = {
     # 数字一手势
     'finger_count_one': {
         'distance_threshold_percent': 0.6,  # 手指伸展阈值（相对于手掌基准长度）
-        'required_frames': 15               # 需要连续检测的帧数
+        'required_frames': 15,              # 需要连续检测的帧数
+        'debounce_frames': 5                # 去抖帧数（连续多少帧检测不到才结束）
     },
     
     # 数字二手势
     'finger_count_two': {
         'distance_threshold_percent': 0.6,  # 手指伸展阈值（相对于手掌基准长度）
-        'required_frames': 15               # 需要连续检测的帧数
+        'required_frames': 15,              # 需要连续检测的帧数
+        'debounce_frames': 5                # 去抖帧数（连续多少帧检测不到才结束）
     },
     
     # 数字三手势
     'finger_count_three': {
         'distance_threshold_percent': 0.6,  # 手指伸展阈值（相对于手掌基准长度）
-        'required_frames': 15               # 需要连续检测的帧数
+        'required_frames': 15,              # 需要连续检测的帧数
+        'debounce_frames': 5                # 去抖帧数（连续多少帧检测不到才结束）
     },
     
     # 竖大拇指
@@ -125,7 +128,8 @@ GESTURE_CONFIG = {
         'other_fingers_threshold': 0.45,        # 其他手指指尖距离掌心阈值（百分比）
         'thumb_angle_threshold': 45.0,          # 大拇指角度阈值（度）
         'thumb_isolation_threshold': 0.5,       # 大拇指与其他手指PIP最小距离阈值（百分比）
-        'required_frames': 15                   # 需要连续检测的帧数
+        'required_frames': 15,                  # 需要连续检测的帧数
+        'debounce_frames': 5                    # 去抖帧数（连续多少帧检测不到才结束）
     },
 
     # 倒竖大拇指
@@ -134,7 +138,8 @@ GESTURE_CONFIG = {
         'other_fingers_threshold': 0.45,        # 其他手指指尖距离掌心阈值（百分比）
         'thumb_angle_threshold': 45.0,          # 大拇指角度阈值（度）
         'thumb_isolation_threshold': 0.5,       # 大拇指与其他手指PIP最小距离阈值（百分比）
-        'required_frames': 15                   # 需要连续检测的帧数
+        'required_frames': 15,                  # 需要连续检测的帧数
+        'debounce_frames': 5                    # 去抖帧数（连续多少帧检测不到才结束）
     }
 }
 
@@ -163,11 +168,11 @@ DISPLAY_CONFIG = {
     # 手势输出配置
     'gesture_output': {
         'enable_console_output': True,   # 启用命令行输出
-        'console_format': 'simple',      # 命令行输出格式：'simple' 或 'json'
+        'console_format': 'json',      # 命令行输出格式：'simple' 或 'json'
         'enable_socket_output': True,   # 启用Socket输出（默认关闭）
-        'socket_host': '127.0.0.1',      # Socket服务器地址
+        'socket_host': '192.168.31.247',      # Socket服务器地址
         'socket_port': None,             # Socket端口（None表示使用SOCKET_PORT）
-        'socket_format': 'simple',       # Socket输出格式：'simple' 或 'json'
+        'socket_format': 'json',       # Socket输出格式：'simple' 或 'json'
     }
 }
 

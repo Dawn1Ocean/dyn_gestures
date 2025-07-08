@@ -3,8 +3,9 @@
 """
 
 from typing import List, Dict, Any, Optional
-from ..base import StaticGestureDetector
+
 from hand_utils import HandUtils
+from ..base import StaticGestureDetector
 
 
 class FingerCountThreeDetector(StaticGestureDetector):

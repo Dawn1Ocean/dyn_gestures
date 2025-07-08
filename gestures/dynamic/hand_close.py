@@ -2,12 +2,15 @@
 张开到握拳手势检测器 - 动态手势，支持轨迹追踪
 """
 
-import numpy as np
 from collections import deque
 from typing import List, Dict, Any, Optional, Tuple
-from ..base import DynamicGestureDetector
-from hand_utils import HandUtils
+
+import numpy as np
+
 import config
+from gesture_output import output_trail_change_with_threshold
+from hand_utils import HandUtils
+from ..base import DynamicGestureDetector
 
 
 class HandCloseDetector(DynamicGestureDetector):
@@ -268,6 +271,11 @@ class HandCloseDetector(DynamicGestureDetector):
                 self.debounce_counters[hand_id] = 0
                 # 重置命令行输出状态
                 self._reset_console_output(hand_id)
+                
+                # 使用输出管理器发送追踪状态
+                from gesture_output import output_tracking_status
+                output_tracking_status(hand_id, f"开始显示握拳轨迹")
+                
                 print(f"[TRACKING] 开始显示 {hand_id} 的握拳轨迹")
             
             # 应用轨迹平滑
@@ -279,7 +287,8 @@ class HandCloseDetector(DynamicGestureDetector):
             
             # 输出轨迹变化到命令行（使用平滑后的位置）
             if self.enable_console_output:
-                HandUtils.output_trail_change(
+                # 使用统一的输出管理器
+                output_trail_change_with_threshold(
                     hand_id, smoothed_center, hand_type,
                     self.last_output_positions, self.output_frame_counters,
                     self.output_interval_frames, self.movement_threshold,
@@ -302,6 +311,11 @@ class HandCloseDetector(DynamicGestureDetector):
                     self._reset_smoothing_state(hand_id)
                     # 重置命令行输出状态
                     self._reset_console_output(hand_id)
+                    
+                    # 使用输出管理器发送追踪状态
+                    from gesture_output import output_tracking_status
+                    output_tracking_status(hand_id, f"停止追踪握拳轨迹")
+                    
                     print(f"[TRACKING] 停止追踪 {hand_id} 的握拳轨迹，清除显示")
     
     def _apply_trajectory_smoothing(self, hand_id: str, new_position: Tuple[int, int]) -> Tuple[int, int]:

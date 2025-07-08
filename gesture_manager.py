@@ -3,6 +3,8 @@
 """
 
 from typing import List, Dict, Any, Optional
+
+import config
 from gestures import (
     GestureDetector, 
     StaticGestureDetector,
@@ -16,7 +18,6 @@ from gestures import (
     FingerCountThreeDetector,
     ThumbsDetector
 )
-import config
 
 class GestureManager:
     """手势管理器，负责管理和协调所有手势检测器"""

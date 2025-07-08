@@ -2,11 +2,13 @@
 握拳到张开手势检测器 - 动态手势
 """
 
-import numpy as np
 from collections import deque
 from typing import List, Dict, Any, Optional
-from ..base import DynamicGestureDetector
+
+import numpy as np
+
 from hand_utils import HandUtils
+from ..base import DynamicGestureDetector
 
 
 class HandOpenDetector(DynamicGestureDetector):

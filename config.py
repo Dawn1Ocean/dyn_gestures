@@ -2,13 +2,24 @@
 配置文件 - 存储所有配置参数
 """
 
+# ==============================================================================
 # 摄像头配置
-CAMERA_INDEX = 0
-CAMERA_FPS = 60  # 摄像头帧率设置
-CAMERA_FRAME_WIDTH = 640  # 摄像头帧宽度
-CAMERA_FRAME_HEIGHT = 360  # 摄像头帧高度
+# ==============================================================================
+CAMERA_INDEX = 0                # 摄像头索引
+CAMERA_FPS = 60                 # 摄像头帧率设置
+CAMERA_FRAME_WIDTH = 640        # 摄像头帧宽度
+CAMERA_FRAME_HEIGHT = 360       # 摄像头帧高度
 
+# ==============================================================================
+# 连接配置
+# ==============================================================================
+CONNECTION_MODE = 'socket'      # 连接模式：'socket' 或 'serial'
+SOCKET_HOST = '127.0.0.1'       # Socket 主机地址
+SOCKET_PORT = 65432             # Socket 端口号
+
+# ==============================================================================
 # 手势检测配置
+# ==============================================================================
 HAND_DETECTION_CONFIG = {
     'static_mode': False,      # 是否使用静态模式
     'max_hands': 1,           # 最大检测手数
@@ -17,14 +28,20 @@ HAND_DETECTION_CONFIG = {
     'min_tracking_confidence': 0.5      # 最小跟踪置信度
 }
 
-# 手势识别参数
+# ==============================================================================
+# 手势识别参数配置
+# ==============================================================================
 GESTURE_CONFIG = {
+    # --------------------------------------------------------------------------
+    # 动态手势配置
+    # --------------------------------------------------------------------------
+    
     # 握拳到张开手势
     'hand_open': {
         'history_length': 10,
         'variance_change_percent': 50,
         'distance_multiplier': 1.5,
-        'cooldown_frames': 20  # 冷却期帧数
+        'cooldown_frames': 20       # 冷却期帧数
     },
     
     # 张开到握拳手势
@@ -58,18 +75,18 @@ GESTURE_CONFIG = {
     # 手左右挥动手势
     'hand_swipe': {
         'history_length': 15,
-        'min_distance_percent': 0.5,      # 最小移动距离百分比（相对于手掌基准长度）
-        'min_movement_frames': 15,         # 最小连续移动帧数
-        'cooldown_frames': 10              # 冷却期帧数
+        'min_distance_percent': 0.5,       # 最小移动距离百分比（相对于手掌基准长度）
+        'min_movement_frames': 15,          # 最小连续移动帧数
+        'cooldown_frames': 10               # 冷却期帧数
     },
     
     # 双指滑动手势
     'two_finger_swipe': {
         'history_length': 12,
-        'min_distance_percent': 0.2,      # 降低最小移动距离百分比
-        'min_movement_frames': 6,          # 降低最小连续移动帧数
-        'finger_distance_threshold': 0.25, # 放宽食指中指并拢阈值
-        'cooldown_frames': 20              # 冷却期帧数
+        'min_distance_percent': 0.2,       # 降低最小移动距离百分比
+        'min_movement_frames': 6,           # 降低最小连续移动帧数
+        'finger_distance_threshold': 0.25,  # 放宽食指中指并拢阈值
+        'cooldown_frames': 20               # 冷却期帧数
     },
     
     # 手掌翻转手势
@@ -80,22 +97,26 @@ GESTURE_CONFIG = {
         'cooldown_frames': 30              # 冷却期帧数
     },
     
+    # --------------------------------------------------------------------------
+    # 静态手势配置
+    # --------------------------------------------------------------------------
+    
     # 数字一手势
     'finger_count_one': {
         'distance_threshold_percent': 0.6,  # 手指伸展阈值（相对于手掌基准长度）
-        'required_frames': 15  # 需要连续检测的帧数
+        'required_frames': 15               # 需要连续检测的帧数
     },
     
     # 数字二手势
     'finger_count_two': {
         'distance_threshold_percent': 0.6,  # 手指伸展阈值（相对于手掌基准长度）
-        'required_frames': 15  # 需要连续检测的帧数
+        'required_frames': 15               # 需要连续检测的帧数
     },
     
     # 数字三手势
     'finger_count_three': {
         'distance_threshold_percent': 0.6,  # 手指伸展阈值（相对于手掌基准长度）
-        'required_frames': 15  # 需要连续检测的帧数
+        'required_frames': 15               # 需要连续检测的帧数
     },
     
     # 竖大拇指
@@ -117,14 +138,18 @@ GESTURE_CONFIG = {
     }
 }
 
+# ==============================================================================
 # 手势类型定义
+# ==============================================================================
 GESTURE_TYPES = {
-    'static_gestures': ['FingerCountOne', 'FingerCountTwo', 'FingerCountThree', 'ThumbsUp', 'ThumbsDown'],  # 静态手势列表
-    'dynamic_gestures': ['HandOpen', 'HandClose', 'HandSwipe', 'HandFlip'],  # 动态手势列表
+    'static_gestures': ['FingerCountOne', 'FingerCountTwo', 'FingerCountThree', 'ThumbsUp', 'ThumbsDown'],
+    'dynamic_gestures': ['HandOpen', 'HandClose', 'HandSwipe', 'HandFlip'],
     'confidence_threshold_for_update': 5.0  # 静态手势置信度变化阈值
 }
 
+# ==============================================================================
 # 显示配置
+# ==============================================================================
 DISPLAY_CONFIG = {
     'window_name': 'Hand Gesture Detection',
     'show_palm_center': True,
@@ -133,10 +158,22 @@ DISPLAY_CONFIG = {
     'show_camera_window': True,         # 是否显示摄像头识别画面
     'gesture_message_duration': 15,     # 帧数
     'show_fps': True,                   # 显示FPS
-    'fps_update_interval': 10           # FPS更新间隔（帧数）
+    'fps_update_interval': 10,          # FPS更新间隔（帧数）
+    
+    # 手势输出配置
+    'gesture_output': {
+        'enable_console_output': True,   # 启用命令行输出
+        'console_format': 'simple',      # 命令行输出格式：'simple' 或 'json'
+        'enable_socket_output': True,   # 启用Socket输出（默认关闭）
+        'socket_host': '127.0.0.1',      # Socket服务器地址
+        'socket_port': None,             # Socket端口（None表示使用SOCKET_PORT）
+        'socket_format': 'simple',       # Socket输出格式：'simple' 或 'json'
+    }
 }
 
+# ==============================================================================
 # 颜色配置 (BGR格式)
+# ==============================================================================
 COLORS = {
     'palm_center': (0, 255, 255),      # 黄色
     'text_primary': (255, 0, 0),       # 蓝色

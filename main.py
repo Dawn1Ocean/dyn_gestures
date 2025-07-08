@@ -2,12 +2,14 @@
 使用模块化架构的手势检测应用
 """
 
-from cvzone.HandTrackingModule import HandDetector
 import cv2
 import time
+
+import config
+from cvzone.HandTrackingModule import HandDetector
 from gesture_manager import GestureManager
 from hand_utils import HandUtils
-import config
+from socket_client import initialize_socket_client, disconnect_socket_client
 
 
 class HandGestureApp:
@@ -35,15 +37,19 @@ class HandGestureApp:
         # 初始化手势管理器
         self.gesture_manager = GestureManager()
         
+        # 初始化Socket客户端（如果启用）
+        if config.DISPLAY_CONFIG.get('gesture_output', {}).get('enable_socket_output', True):
+            self.socket_initialized = initialize_socket_client(
+                debug_mode=False, 
+                silent_mode=True
+            )
+        
         # 显示状态
         self.gesture_message = ""
         self.gesture_timer = 0
         
         # 运行状态
         self.running = True
-        
-        # 静态手势输出控制 - 避免重复刷屏
-        self.last_printed_gesture = None  # 记录上一次打印的任何手势 (gesture_key)
         
         # FPS计算相关
         self.fps_counter = 0
@@ -96,16 +102,15 @@ class HandGestureApp:
                 if detected_gestures:
                     # 处理检测到的手势
                     for gesture in detected_gestures:
-                        self.handle_gesture_result(gesture)
-                else:
-                    self.last_printed_gesture = None
+                        self.handle_gesture_result(gesture, hand_id)
                 
                 # 绘制手部信息
                 self.draw_hand_info(img, hand, i)
         else:
-            # 没有检测到手时，重置静态手势跟踪和检测历史
-            self.last_printed_gesture = None
+            # 没有检测到手时，重置手势管理器和输出管理器的历史
             self.gesture_manager.on_all_hands_lost()
+            from gesture_output import reset_all_gesture_history
+            reset_all_gesture_history()
         
         # 绘制握拳轨迹（在其他绘制之前）
         hand_close_detector = self.gesture_manager.get_detector_by_name("HandClose")
@@ -135,7 +140,7 @@ class HandGestureApp:
         
         return img
     
-    def handle_gesture_result(self, gesture_result):
+    def handle_gesture_result(self, gesture_result, hand_id):
         """处理手势检测结果"""
         gesture_name = gesture_result['gesture']
         hand_type = gesture_result['hand_type']
@@ -145,17 +150,9 @@ class HandGestureApp:
         self.gesture_message = gesture_result.get('display_message', f"{hand_type} Hand: {gesture_name}")
         self.gesture_timer = config.DISPLAY_CONFIG['gesture_message_duration']
 
-        gesture_key = f"{hand_type}_{gesture_name}"
-        message = f"检测到手势: {gesture_name}, 手部: {hand_type}, 置信度: {confidence:.1f}%"
-
-        if self.last_printed_gesture == gesture_key and gesture_name in config.GESTURE_TYPES['static_gestures']:
-            # 连续相同的静态手势，用 \r 覆盖
-            print(f"\r{message}", end='', flush=True)
-        else:
-            print()
-            print(message, end='', flush=True)
-
-        self.last_printed_gesture = gesture_key
+        # 使用统一的输出管理器
+        from gesture_output import output_gesture_detection
+        output_gesture_detection(gesture_result, hand_id)
     
     def draw_hand_info(self, img, hand, hand_index):
         """绘制手部信息"""
@@ -245,6 +242,10 @@ class HandGestureApp:
         """清理资源"""
         print("\n正在关闭应用...")
         self.cap.release()
+        
+        # 断开Socket连接
+        if self.socket_initialized:
+            disconnect_socket_client()
         
         # 只有在显示窗口时才需要销毁窗口
         if config.DISPLAY_CONFIG['show_camera_window']:

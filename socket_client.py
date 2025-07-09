@@ -198,7 +198,7 @@ def initialize_socket_client(host: Optional[str] = None, port: Optional[int] = N
     return _socket_client.initialize(host, port, debug_mode)
 
 
-def send_message_to_server(message: str, host: Optional[str] = None, port: Optional[int] = None, isdev: bool = False) -> Optional[str]:
+def send_message_to_server(message: str, host: Optional[str] = config.SOCKET_HOST, port: Optional[int] = config.SOCKET_PORT, isdev: bool = False) -> Optional[str]:
     """
     发送消息到服务器（兼容旧接口）
     

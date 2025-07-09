@@ -170,9 +170,8 @@ class HandGestureApp:
         self.gesture_message = gesture_result.get('display_message', f"{hand_type} Hand: {gesture_name}")
         self.gesture_timer = config.DISPLAY_CONFIG['gesture_message_duration']
 
-        # 使用统一的输出管理器
-        from gesture_output import output_gesture_detection
-        output_gesture_detection(gesture_result, hand_id)
+        # 注意：输出管理已经在gesture_manager中处理，这里不需要重复调用
+        # output_gesture_detection(gesture_result, hand_id) # 已在gesture_manager中调用
     
     def draw_hand_info(self, img, hand, hand_index):
         """绘制手部信息"""

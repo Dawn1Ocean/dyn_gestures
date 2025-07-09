@@ -16,11 +16,6 @@ class GestureOutputManager:
     
     def __init__(self):
         """初始化输出管理器"""
-        self._load_config()
-        self._init_state()
-    
-    def _load_config(self):
-        """加载配置"""
         output_config = config.DISPLAY_CONFIG.get('gesture_output', {})
         
         # 命令行输出配置
@@ -29,15 +24,10 @@ class GestureOutputManager:
         
         # Socket输出配置
         self.enable_socket_output = output_config.get('enable_socket_output', False)
-        self.socket_host = output_config.get('socket_host', '127.0.0.1')
-        self.socket_port = output_config.get('socket_port', None) or config.SOCKET_PORT
+        self.socket_host = config.SOCKET_HOST
+        self.socket_port = config.SOCKET_PORT
         self.socket_format = output_config.get('socket_format', 'simple')
-    
-    def _init_state(self):
-        """初始化状态变量"""
-        # 静态手势重复输出控制
-        self.last_printed_gesture = {}  # {hand_id: gesture_key}
-    
+
     def output_gesture_detection(self, gesture_result: Dict[str, Any], hand_id: str):
         """输出手势检测结果"""
         if not gesture_result:
@@ -45,16 +35,9 @@ class GestureOutputManager:
         
         gesture_info = self._extract_gesture_info(gesture_result, hand_id)
         
-        # 检查是否需要跳过重复输出
-        if self._should_skip_console_output(gesture_info):
-            return
-        
-        # 执行输出
+        # 直接输出，不进行重复检测
         self._output_to_console(gesture_info)
         self._output_to_socket(gesture_info)
-        
-        # 更新状态
-        self._update_gesture_history(gesture_info)
     
     def _extract_gesture_info(self, gesture_result: Dict[str, Any], hand_id: str) -> Dict[str, Any]:
         """提取手势信息"""
@@ -67,78 +50,13 @@ class GestureOutputManager:
             'gesture_key': f"{gesture_result['hand_type']}_{gesture_result['gesture']}"
         }
     
-    def _should_skip_console_output(self, gesture_info: Dict[str, Any]) -> bool:
-        """检查是否应该跳过命令行输出"""
-        if not self.enable_console_output:
-            return True
-            
-        gesture_name = gesture_info['gesture']
-        hand_id = gesture_info['hand_id']
-        gesture_key = gesture_info['gesture_key']
-        
-        # 如果是静态手势且有结束标记，则不跳过
-        if gesture_info.get('details', {}).get('tag') == 'end':
-            return False
-        
-        # 如果是静态手势且有开始标记，检查是否重复
-        is_static_gesture = gesture_name in config.GESTURE_TYPES['static_gestures']
-        if is_static_gesture and gesture_info.get('details', {}).get('tag') == 'start':
-            return (hand_id in self.last_printed_gesture and 
-                    self.last_printed_gesture[hand_id] == gesture_key)
-        
-        # 原来的逻辑，用于没有标记的静态手势
-        return (is_static_gesture and 
-                hand_id in self.last_printed_gesture and 
-                self.last_printed_gesture[hand_id] == gesture_key)
-    
     def _output_to_console(self, gesture_info: Dict[str, Any]):
         """输出到命令行"""
-        if not self.enable_console_output or self._should_skip_console_output(gesture_info):
+        if not self.enable_console_output:
             return
             
-        if self.console_format == 'json':
-            self._print_json_format(gesture_info)
-        else:
-            self._print_simple_format(gesture_info)
-    
-    def _print_json_format(self, gesture_info: Dict[str, Any]):
-        """打印JSON格式 - 与Socket输出保持一致"""
-        output_data = {
-            'timestamp': time.time(),
-            'hand_type': gesture_info['hand_type'].lower(),
-            'confidence': gesture_info['confidence'],
-            'gesture': gesture_info['gesture'],
-            'gesture_type': self._get_gesture_type(gesture_info['gesture']),
-            'details': gesture_info['details']
-        }
-        print(f"{json.dumps(output_data, ensure_ascii=False)}")
-    
-    def _get_gesture_type(self, gesture_name: str) -> str:
-        """获取手势类型"""
-        # 将手势名称转换为标准格式进行匹配
-        static_gestures = config.GESTURE_TYPES.get('static_gestures', [])
-        
-        # 尝试直接匹配
-        if gesture_name in static_gestures:
-            return 'static'
-        
-        # 尝试转换为PascalCase匹配
-        pascal_case_name = ''.join(word.capitalize() for word in gesture_name.split('_'))
-        if pascal_case_name in static_gestures:
-            return 'static'
-        
-        # 尝试转换为小写匹配
-        lowercase_static_gestures = [g.lower() for g in static_gestures]
-        if gesture_name.lower() in lowercase_static_gestures:
-            return 'static'
-        
-        # 默认为动态手势
-        return 'dynamic'
-    
-    def _print_simple_format(self, gesture_info: Dict[str, Any]):
-        """打印简单格式"""
-        print(f"[GESTURE_DETECTED] {gesture_info['hand_type']} {gesture_info['hand_id']}: "
-              f"{gesture_info['gesture']} (置信度: {gesture_info['confidence']:.1f}%)")
+        message = self._create_gesture_message(gesture_info, self.console_format)
+        print(f"[GESTURE_DETECTED] {message}")
     
     def _output_to_socket(self, gesture_info: Dict[str, Any]):
         """输出到Socket"""
@@ -146,44 +64,20 @@ class GestureOutputManager:
             return
             
         try:
-            message = self._create_socket_message(gesture_info)
+            if self.socket_format == 'json':
+                message = self._create_gesture_message(gesture_info, self.socket_format)
+            else:
+                # 简单格式保持原有的GESTURE|信息格式以保持向后兼容
+                base_message = self._create_gesture_message(gesture_info, self.socket_format)
+                message = f"GESTURE|{base_message}"
             send_message_to_server(message, self.socket_host, self.socket_port)
         except Exception as e:
             self._handle_socket_error(e)
-    
-    def _create_socket_message(self, gesture_info: Dict[str, Any]) -> str:
-        """创建Socket消息"""
-        if self.socket_format == 'json':
-            output_data = {
-                'timestamp': time.time(),
-                'hand_type': gesture_info['hand_type'].lower(),
-                'confidence': gesture_info['confidence'],
-                'gesture': gesture_info['gesture'],
-                'gesture_type': self._get_gesture_type(gesture_info['gesture']),
-                'details': gesture_info['details']
-            }
-            return json.dumps(output_data, ensure_ascii=False)
-        else:
-            return f"GESTURE|{gesture_info['hand_id']}|{gesture_info['gesture']}|{gesture_info['confidence']:.1f}"
     
     def _handle_socket_error(self, error: Exception):
         """处理Socket错误"""
         if self.enable_console_output:
             print(f"[GESTURE_OUTPUT] Socket发送失败: {error}")
-    
-    def _update_gesture_history(self, gesture_info: Dict[str, Any]):
-        """更新手势历史"""
-        if self.enable_console_output:
-            # 只有在开始静态手势时才更新历史记录
-            if gesture_info.get('details', {}).get('tag') == 'start':
-                self.last_printed_gesture[gesture_info['hand_id']] = gesture_info['gesture_key']
-            elif gesture_info.get('details', {}).get('tag') == 'end':
-                # 结束时清除历史记录
-                if gesture_info['hand_id'] in self.last_printed_gesture:
-                    del self.last_printed_gesture[gesture_info['hand_id']]
-            elif gesture_info.get('details', {}).get('tag') is None:
-                # 没有标记的手势（动态手势或旧的静态手势）
-                self.last_printed_gesture[gesture_info['hand_id']] = gesture_info['gesture_key']
     
     def output_trail_change(self, hand_id: str, position: tuple, hand_type: str, 
                            movement_data: Optional[Dict] = None):
@@ -208,42 +102,8 @@ class GestureOutputManager:
         if not self.enable_console_output:
             return
             
-        if self.console_format == 'json':
-            self._print_trail_json(trail_info)
-        else:
-            self._print_trail_simple(trail_info)
-    
-    def _print_trail_json(self, trail_info: Dict[str, Any]):
-        """打印轨迹JSON格式"""
-        # 轨迹变化作为动态手势的一部分
-        details = {}
-        if trail_info['movement_data'] and 'movement' in trail_info['movement_data']:
-            movement = trail_info['movement_data']['movement']
-            details.update({
-                'dx': int(movement.get('dx', 0)),
-                'dy': int(movement.get('dy', 0))
-            })
-        
-        output_data = {
-            'timestamp': time.time(),
-            'hand_type': trail_info['hand_type'].lower(),
-            'confidence': 100,  # 轨迹追踪时置信度为100
-            'gesture': 'hand_close',  # 轨迹追踪对应hand_close手势
-            'gesture_type': 'dynamic',
-            'details': details
-        }
-        print(f"[TRAIL_UPDATE] {json.dumps(output_data, ensure_ascii=False)}")
-    
-    def _print_trail_simple(self, trail_info: Dict[str, Any]):
-        """打印轨迹简单格式"""
-        position = trail_info['position']
-        movement_info = ""
-        if trail_info['movement_data'] and 'movement' in trail_info['movement_data']:
-            mov = trail_info['movement_data']['movement']
-            movement_info = f" 移动=({mov.get('dx', 0):+d},{mov.get('dy', 0):+d}) " \
-                          f"距离={mov.get('distance', 0):.1f}"
-        print(f"[TRAIL_UPDATE] {trail_info['hand_type']}_{trail_info['hand_id']}: "
-              f"位置=({position[0]},{position[1]}){movement_info}")
+        message = self._create_trail_message(trail_info, self.console_format)
+        print(f"[TRAIL_UPDATE] {message}")
     
     def _output_trail_to_socket(self, trail_info: Dict[str, Any]):
         """输出轨迹到Socket"""
@@ -251,42 +111,15 @@ class GestureOutputManager:
             return
             
         try:
-            message = self._create_trail_socket_message(trail_info)
+            if self.socket_format == 'json':
+                message = self._create_trail_message(trail_info, self.socket_format)
+            else:
+                # 简单格式保持原有的TRAIL|hand_id|x|y格式以保持向后兼容
+                position = trail_info['position']
+                message = f"TRAIL|{trail_info['hand_id']}|{position[0]}|{position[1]}"
             send_message_to_server(message, self.socket_host, self.socket_port)
         except Exception as e:
             self._handle_socket_error(e)
-    
-    def _create_trail_socket_message(self, trail_info: Dict[str, Any]) -> str:
-        """创建轨迹Socket消息"""
-        if self.socket_format == 'json':
-            # 轨迹变化作为动态手势的一部分
-            details = {}
-            if trail_info['movement_data'] and 'movement' in trail_info['movement_data']:
-                movement = trail_info['movement_data']['movement']
-                details.update({
-                    'dx': int(movement.get('dx', 0)),
-                    'dy': int(movement.get('dy', 0))
-                })
-            
-            output_data = {
-                'timestamp': time.time(),
-                'hand_type': trail_info['hand_type'].lower(),
-                'confidence': 100,  # 轨迹追踪时置信度为100
-                'gesture': 'hand_close',  # 轨迹追踪对应hand_close手势
-                'gesture_type': 'dynamic',
-                'details': details
-            }
-            return json.dumps(output_data, ensure_ascii=False)
-        else:
-            position = trail_info['position']
-            return f"TRAIL|{trail_info['hand_id']}|{position[0]}|{position[1]}"
-    
-    def output_tracking_status(self, hand_id: str, status: str, details: Optional[Dict] = None):
-        """输出追踪状态信息"""
-        status_info = self._create_status_info(hand_id, status, details)
-        
-        self._output_status_to_console(status_info)
-        self._output_status_to_socket(status_info)
     
     def _create_status_info(self, hand_id: str, status: str, details: Optional[Dict] = None) -> Dict[str, Any]:
         """创建状态信息"""
@@ -296,73 +129,10 @@ class GestureOutputManager:
             'details': details or {}
         }
     
-    def _output_status_to_console(self, status_info: Dict[str, Any]):
-        """输出状态到命令行"""
-        if not self.enable_console_output:
-            return
-            
-        if self.console_format == 'json':
-            self._print_status_json(status_info)
-        else:
-            self._print_status_simple(status_info)
-    
-    def _print_status_json(self, status_info: Dict[str, Any]):
-        """打印状态JSON格式 - 根据新协议，状态信息不输出JSON格式"""
-        # 状态信息不符合新的数据传输协议，跳过JSON输出
-        pass
-    
-    def _print_status_simple(self, status_info: Dict[str, Any]):
-        """打印状态简单格式"""
-        print(f"[TRACKING_STATUS] {status_info['hand_id']}: {status_info['status']}")
-    
-    def _output_status_to_socket(self, status_info: Dict[str, Any]):
-        """输出状态到Socket"""
-        if not self.enable_socket_output:
-            return
-            
-        try:
-            message = self._create_status_socket_message(status_info)
-            # 只有在消息非空时才发送
-            if message:
-                send_message_to_server(message, self.socket_host, self.socket_port)
-        except Exception as e:
-            self._handle_socket_error(e)
-    
-    def _create_status_socket_message(self, status_info: Dict[str, Any]) -> str:
-        """创建状态Socket消息"""
-        if self.socket_format == 'json':
-            # 状态信息不符合新的数据传输协议，返回空字符串
-            return ""
-        else:
-            return f"STATUS|{status_info['hand_id']}|{status_info['status']}"
-    
-    def reset_hand_gesture_history(self, hand_id: str):
-        """重置指定手的手势历史记录"""
-        if hand_id in self.last_printed_gesture:
-            del self.last_printed_gesture[hand_id]
-    
-    def reset_all_gesture_history(self):
-        """重置所有手的手势历史记录"""
-        self.last_printed_gesture.clear()
-    
     def output_trail_change_with_threshold(self, hand_id: str, current_pos: tuple, hand_type: str,
                                          last_output_positions: dict, output_frame_counters: dict,
                                          output_interval_frames: int, movement_threshold: float,
                                          output_format: str) -> bool:
-        """
-        输出轨迹变化到命令行和Socket（带阈值控制）
-        Args:
-            hand_id: 手部ID
-            current_pos: 当前位置 (x, y)
-            hand_type: 手部类型 (Left/Right)
-            last_output_positions: 上次输出位置字典 {hand_id: (x, y)}
-            output_frame_counters: 输出帧计数器字典 {hand_id: int}
-            output_interval_frames: 输出间隔帧数
-            movement_threshold: 移动阈值（像素）
-            output_format: 输出格式 ('json' 或 'simple')
-        Returns:
-            是否输出了轨迹变化
-        """
         # 检查输出间隔
         output_frame_counters[hand_id] = output_frame_counters.get(hand_id, 0) + 1
         if output_frame_counters[hand_id] < output_interval_frames:
@@ -404,10 +174,8 @@ class GestureOutputManager:
                 
                 # 输出到命令行
                 if self.enable_console_output:
-                    if output_format == 'json':
-                        self._print_trail_json(trail_info)
-                    else:
-                        self._print_trail_simple(trail_info)
+                    message = self._create_trail_message(trail_info, output_format)
+                    print(f"[TRAIL_UPDATE] {message}")
                 
                 # 输出到Socket
                 self._output_trail_to_socket(trail_info)
@@ -420,6 +188,58 @@ class GestureOutputManager:
             last_output_positions[hand_id] = current_pos
         
         return False
+
+    def _create_gesture_message(self, gesture_info: Dict[str, Any], format_type: str) -> str:
+        """创建手势检测消息（统一格式）"""
+        if format_type == 'json':
+            output_data = {
+                'timestamp': time.time(),
+                'hand_type': gesture_info['hand_type'].lower(),
+                'confidence': gesture_info['confidence'],
+                'gesture': gesture_info['gesture'],
+                'details': gesture_info['details'],
+                'type': 'gesture_detection',
+            }
+            return json.dumps(output_data, ensure_ascii=False)
+        else:
+            return (f"{gesture_info['hand_type']} {gesture_info['hand_id']}: "
+                   f"{gesture_info['gesture']} (置信度: {gesture_info['confidence']:.1f}%)")
+    
+    def _create_trail_message(self, trail_info: Dict[str, Any], format_type: str) -> str:
+        """创建轨迹变化消息（统一格式）"""
+        if format_type == 'json':
+            # 轨迹变化作为动态手势的一部分
+            details = {}
+            if trail_info['movement_data'] and 'movement' in trail_info['movement_data']:
+                movement = trail_info['movement_data']['movement']
+                details.update({
+                    'dx': int(movement.get('dx', 0)),
+                    'dy': int(movement.get('dy', 0)),
+                    'distance': movement.get('distance', 0)
+                })
+                # 添加位置信息
+                details.update({
+                    'position': {'x': trail_info['position'][0], 'y': trail_info['position'][1]}
+                })
+            
+            output_data = {
+                'timestamp': time.time(),
+                'hand_type': trail_info['hand_type'].lower(),
+                'confidence': 100,  # 轨迹追踪时置信度为100
+                'gesture': 'hand_close',  # 轨迹追踪对应hand_close手势
+                'gesture_type': 'dynamic',
+                'details': details
+            }
+            return json.dumps(output_data, ensure_ascii=False)
+        else:
+            position = trail_info['position']
+            movement_info = ""
+            if trail_info['movement_data'] and 'movement' in trail_info['movement_data']:
+                mov = trail_info['movement_data']['movement']
+                movement_info = f" 移动=({mov.get('dx', 0):+d},{mov.get('dy', 0):+d}) " \
+                              f"距离={mov.get('distance', 0):.1f}"
+            return (f"{trail_info['hand_type']}_{trail_info['hand_id']}: "
+                   f"位置=({position[0]},{position[1]}){movement_info}")
 
 
 # 全局输出管理器实例
@@ -449,15 +269,3 @@ def output_trail_change_with_threshold(hand_id: str, current_pos: tuple, hand_ty
         hand_id, current_pos, hand_type, last_output_positions, output_frame_counters,
         output_interval_frames, movement_threshold, output_format
     )
-
-def output_tracking_status(hand_id: str, status: str, details: Optional[Dict] = None):
-    """便捷函数：输出追踪状态"""
-    get_output_manager().output_tracking_status(hand_id, status, details)
-
-def reset_hand_gesture_history(hand_id: str):
-    """便捷函数：重置指定手的手势历史记录"""
-    get_output_manager().reset_hand_gesture_history(hand_id)
-
-def reset_all_gesture_history():
-    """便捷函数：重置所有手的手势历史记录"""
-    get_output_manager().reset_all_gesture_history()

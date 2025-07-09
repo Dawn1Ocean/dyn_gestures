@@ -56,9 +56,6 @@ class FingerCountThreeDetector(StaticGestureDetector):
                         'frames_detected': self.detection_history[hand_id]['count']
                     }
                 }
-        else:
-            # 如果不满足基础条件，不要直接重置，让手势管理器处理结束逻辑
-            pass
         
         return None
     

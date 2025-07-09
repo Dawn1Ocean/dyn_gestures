@@ -170,9 +170,10 @@ DISPLAY_CONFIG = {
         'enable_console_output': True,   # 启用命令行输出
         'console_format': 'json',      # 命令行输出格式：'simple' 或 'json'
         'enable_socket_output': True,   # 启用Socket输出（默认关闭）
-        'socket_host': '192.168.31.247',      # Socket服务器地址
-        'socket_port': None,             # Socket端口（None表示使用SOCKET_PORT）
         'socket_format': 'json',       # Socket输出格式：'simple' 或 'json'
+        
+        # 静态手势输出频率控制
+        'static_gesture_output_interval': 20,  # 静态手势输出间隔（帧数）
     }
 }
 

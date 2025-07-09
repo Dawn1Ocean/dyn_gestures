@@ -131,35 +131,22 @@ class GestureManager:
         """
         results = []
         
-        # 首先检查静态手势是否结束
-        static_gesture_ended = False
+        # 先检测静态手势
         for detector in self.detectors:
             if isinstance(detector, StaticGestureDetector):
                 try:
-                    # 先检测当前手势
+                    # 检测当前手势
                     current_result = detector.detect(landmarks, hand_id, hand_type)
-                    current_gesture = current_result['gesture'] if current_result else None
                     
-                    # 检查是否有手势结束
-                    end_result = detector.check_gesture_end(hand_id, current_gesture)
-                    if end_result:
-                        end_result['hand_type'] = hand_type
-                        end_result['display_message'] = detector.get_display_message(end_result) + " [ENDED]"
-                        results.append(end_result)
-                        static_gesture_ended = True
-                    
-                    # 如果检测到新手势，添加到结果
-                    if current_result:
-                        # 检查是否是新手势（避免重复发送开始信息）
-                        if hand_id not in detector.active_gestures or detector.active_gestures[hand_id]['gesture'] != current_result['gesture']:
-                            # 标记为活跃手势
-                            detector.mark_gesture_active(hand_id, current_result['gesture'], current_result['confidence'])
-                            # 添加开始标记
-                            current_result['details'] = current_result.get('details', {})
-                            current_result['details']['tag'] = 'start'
-                            # 添加显示消息
-                            current_result['display_message'] = detector.get_display_message(current_result)
-                            results.append(current_result)
+                    # 如果检测到手势且满足输出条件，添加到结果并直接发送
+                    if current_result and detector.should_output_gesture(hand_id):
+                        # 添加显示消息
+                        current_result['display_message'] = detector.get_display_message(current_result)
+                        results.append(current_result)
+                        
+                        # 直接发送手势检测结果
+                        from gesture_output import output_gesture_detection
+                        output_gesture_detection(current_result, hand_id)
                         
                 except Exception as e:
                     print(f"静态手势检测器 {detector.name} 出错: {e}")
@@ -173,6 +160,10 @@ class GestureManager:
                         # 添加显示消息到结果中
                         result['display_message'] = detector.get_display_message(result)
                         results.append(result)
+                        
+                        # 直接发送手势检测结果
+                        from gesture_output import output_gesture_detection
+                        output_gesture_detection(result, hand_id)
                 except Exception as e:
                     print(f"动态手势检测器 {detector.name} 出错: {e}")
         
@@ -192,57 +183,20 @@ class GestureManager:
     
     def on_hand_lost(self, hand_id: str):
         """
-        当手部丢失时调用，重置相关的静态手势检测历史并发送结束信息
+        当手部丢失时调用，重置相关的检测历史
         Args:
             hand_id: 丢失的手部ID
         """
         for detector in self.detectors:
             if isinstance(detector, StaticGestureDetector):
-                # 检查是否有活跃的静态手势需要结束
-                if hand_id in detector.active_gestures:
-                    active_gesture = detector.active_gestures[hand_id]
-                    end_result = {
-                        'gesture': active_gesture['gesture'],
-                        'hand_type': 'Unknown',  # 手部已丢失，无法确定类型
-                        'confidence': active_gesture['confidence'],
-                        'details': {'tag': 'end'},
-                        'display_message': detector.get_display_message({
-                            'gesture': active_gesture['gesture'],
-                            'hand_type': 'Unknown',
-                            'confidence': active_gesture['confidence']
-                        }) + " [ENDED - HAND LOST]"
-                    }
-                    
-                    # 发送结束信息
-                    from gesture_output import output_gesture_detection
-                    output_gesture_detection(end_result, hand_id)
-                
                 # 重置检测历史
                 detector.reset_detection_history(hand_id)
     
     def on_all_hands_lost(self):
         """
-        当所有手部都丢失时调用，重置所有静态手势检测历史并发送结束信息
+        当所有手部都丢失时调用，重置所有检测历史
         """
         for detector in self.detectors:
             if isinstance(detector, StaticGestureDetector):
-                # 为所有活跃的静态手势发送结束信息
-                for hand_id, active_gesture in detector.active_gestures.items():
-                    end_result = {
-                        'gesture': active_gesture['gesture'],
-                        'hand_type': 'Unknown',  # 手部已丢失，无法确定类型
-                        'confidence': active_gesture['confidence'],
-                        'details': {'tag': 'end'},
-                        'display_message': detector.get_display_message({
-                            'gesture': active_gesture['gesture'],
-                            'hand_type': 'Unknown',
-                            'confidence': active_gesture['confidence']
-                        }) + " [ENDED - ALL HANDS LOST]"
-                    }
-                    
-                    # 发送结束信息
-                    from gesture_output import output_gesture_detection
-                    output_gesture_detection(end_result, hand_id)
-                
                 # 重置检测历史
                 detector.reset_detection_history()

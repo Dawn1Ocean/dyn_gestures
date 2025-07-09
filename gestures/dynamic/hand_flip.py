@@ -12,12 +12,11 @@ from ..base import DynamicGestureDetector
 class HandFlipDetector(DynamicGestureDetector):
     """手掌翻转手势检测器"""
     
-    def __init__(self, max_movement_percent: float = 0.15, min_flip_frames: int = 10, 
-                 history_length: int = 20, cooldown_frames: int = 30):
-        super().__init__("HandFlip", history_length, cooldown_frames)
-        self.max_movement_percent = max_movement_percent  # 最大移动距离百分比（相对于手掌基准长度）
-        self.min_flip_frames = min_flip_frames  # 翻转检测的最小帧数
-        
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__("HandFlip", config['history_length'], config['cooldown_frames'])
+        self.max_movement_percent = config['max_movement_percent']  # 最大移动距离百分比（相对于手掌基准长度）
+        self.min_flip_frames = config['min_flip_frames']  # 翻转检测的最小帧数
+
     def detect(self, landmarks: List[List[int]], hand_id: str, hand_type: str) -> Optional[Dict[str, Any]]:
         """检测手掌翻转手势"""
         # 检查是否在冷却期内

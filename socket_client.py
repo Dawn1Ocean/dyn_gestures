@@ -200,7 +200,7 @@ def initialize_socket_client(host: Optional[str] = None, port: Optional[int] = N
 
 def send_message_to_server(message: str, host: Optional[str] = config.SOCKET_HOST, port: Optional[int] = config.SOCKET_PORT, isdev: bool = False) -> Optional[str]:
     """
-    发送消息到服务器（兼容旧接口）
+    发送消息到服务器
     
     :param message: 要发送的消息
     :param host: 服务器主机地址（如果未初始化则使用此参数）
@@ -233,27 +233,3 @@ def get_socket_client_status() -> dict:
     if _socket_client:
         return _socket_client.get_status()
     return {'enabled': False, 'connected': False}
-
-
-# --- 如何使用 ---
-if __name__ == "__main__":
-    # 初始化Socket客户端
-    print("--- 初始化Socket客户端 ---")
-    if initialize_socket_client(debug_mode=True):
-        print("初始化成功")
-        
-        # 发送多条消息
-        print("\n--- 发送消息测试 ---")
-        send_message_to_server("你好，服务器！我是客户端。")
-        send_message_to_server("这是我的第二条消息。")
-        send_message_to_server("这是我的第三条消息。")
-        
-        # 显示状态
-        print(f"\n--- 连接状态 ---")
-        print(get_socket_client_status())
-        
-        # 断开连接
-        print("\n--- 断开连接 ---")
-        disconnect_socket_client()
-    else:
-        print("初始化失败")

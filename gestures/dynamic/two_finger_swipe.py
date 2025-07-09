@@ -13,14 +13,12 @@ from ..base import DynamicGestureDetector
 class TwoFingerSwipeDetector(DynamicGestureDetector):
     """双指滑动手势检测器（食指和中指并拢朝上，其他手指弯曲）"""
     
-    def __init__(self, min_distance_percent: float = 0.3, min_movement_frames: int = 8, 
-                 history_length: int = 15, finger_distance_threshold: float = 0.15,
-                 cooldown_frames: int = 30):
-        super().__init__("TwoFingerSwipe", history_length, cooldown_frames)
-        self.min_distance_percent = min_distance_percent  # 最小移动距离百分比（相对于手掌基准长度）
-        self.min_movement_frames = min_movement_frames  # 最小连续移动帧数
-        self.finger_distance_threshold = finger_distance_threshold  # 食指中指并拢阈值
-        
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__("TwoFingerSwipe", config['history_length'], config['cooldown_frames'])
+        self.min_distance_percent = config['min_distance_percent']  # 最小移动距离百分比（相对于手掌基准长度）
+        self.min_movement_frames = config['min_movement_frames']  # 最小连续移动帧数
+        self.finger_distance_threshold = config['finger_distance_threshold']  # 食指中指并拢阈值
+
     def detect(self, landmarks: List[List[int]], hand_id: str, hand_type: str) -> Optional[Dict[str, Any]]:
         """检测双指滑动手势"""
         # 检查是否在冷却期内

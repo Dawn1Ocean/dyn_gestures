@@ -13,12 +13,11 @@ from ..base import DynamicGestureDetector
 
 class HandOpenDetector(DynamicGestureDetector):
     """握拳到张开手势检测器"""
-    
-    def __init__(self, variance_change_percent: float = 50, distance_multiplier: float = 1.5, 
-                 history_length: int = 10, cooldown_frames: int = 30):
-        super().__init__("HandOpen", history_length, cooldown_frames)
-        self.variance_change_percent = variance_change_percent
-        self.distance_multiplier = distance_multiplier
+
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__("HandOpen", config['history_length'], config['cooldown_frames'])
+        self.variance_change_percent = config['variance_change_percent']
+        self.distance_multiplier = config['distance_multiplier']
     
     def detect(self, landmarks: List[List[int]], hand_id: str, hand_type: str) -> Optional[Dict[str, Any]]:
         """检测握拳到张开手势"""

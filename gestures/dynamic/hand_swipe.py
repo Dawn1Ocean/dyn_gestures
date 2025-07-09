@@ -12,12 +12,11 @@ from ..base import DynamicGestureDetector
 class HandSwipeDetector(DynamicGestureDetector):
     """手左右挥动手势检测器"""
     
-    def __init__(self, min_distance_percent: float = 0.3, min_movement_frames: int = 8, 
-                 history_length: int = 15, cooldown_frames: int = 30):
-        super().__init__("HandSwipe", history_length, cooldown_frames)
-        self.min_distance_percent = min_distance_percent  # 最小移动距离百分比（相对于手掌基准长度）
-        self.min_movement_frames = min_movement_frames  # 最小连续移动帧数
-        
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__("HandSwipe", config['history_length'], config['cooldown_frames'])
+        self.min_distance_percent = config['min_distance_percent']  # 最小移动距离百分比（相对于手掌基准长度）
+        self.min_movement_frames = config['min_movement_frames']  # 最小连续移动帧数
+
     def detect(self, landmarks: List[List[int]], hand_id: str, hand_type: str) -> Optional[Dict[str, Any]]:
         """检测手左右挥动手势"""
         # 检查是否在冷却期内

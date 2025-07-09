@@ -91,16 +91,16 @@ class HandUtils:
         return float(np.var(distances)) if len(distances) > 1 else 0.0
     
     @staticmethod
-    def is_finger_extended(landmarks: List[List[int]], finger_tip_index: int, 
-                          finger_pip_index: int, finger_mcp_index: int,
-                          distance_threshold_percent: float = 0.6) -> bool:
+    def is_finger_extended_and_upward(landmarks: List[List[int]], finger_tip_index: int, 
+                                    finger_pip_index: int, finger_mcp_index: int, 
+                                    distance_threshold_percent: float = 0.6) -> bool:
         """
-        判断手指是否伸直（基于距离百分比）
+        判断手指是否伸直（基于距离百分比）且朝上
         Args:
             landmarks: 手部关键点列表
             finger_tip_index: 指尖索引
-            finger_pip_index: PIP关节索引
-            finger_mcp_index: MCP关节索引
+            finger_pip_index: PIP 关节索引
+            finger_mcp_index: MCP 关节索引
             distance_threshold_percent: 距离阈值百分比
         Returns:
             手指是否伸直
@@ -116,9 +116,7 @@ class HandUtils:
         # 检查手指是否伸直（指尖到手腕的距离 > 阈值 * 手掌基准长度）
         tip_to_wrist_dist = HandUtils.calculate_distance(tip, wrist)
         extended = tip_to_wrist_dist > palm_base_length * distance_threshold_percent
-        
-        # 检查手指是否朝上（Y坐标递减：tip < pip < mcp）
-        upward = tip[1] < pip[1] < mcp[1]
+        upward = tip[1] < pip[1] < mcp[1]  # 指尖Y坐标小于PIP且PIP小于MCP
         
         return extended and upward
     
@@ -126,19 +124,28 @@ class HandUtils:
     def is_finger_bent(landmarks: List[List[int]], finger_tip_index: int, 
                       finger_pip_index: int) -> bool:
         """
-        判断手指是否弯曲
+        判断手指是否弯曲 - 支持任意手部朝向
+        使用距离比较法，比单纯的坐标比较更准确
         Args:
             landmarks: 手部关键点列表
             finger_tip_index: 指尖索引
             finger_pip_index: PIP关节索引
+            finger_mcp_index: MCP关节索引（可选，提供时判断更准确）
         Returns:
             手指是否弯曲
         """
         tip = landmarks[finger_tip_index]
         pip = landmarks[finger_pip_index]
         
-        # 如果指尖Y坐标大于PIP关节，认为是弯曲的
-        return tip[1] > pip[1]
+        # 使用手腕作为参考点
+        wrist = landmarks[0]
+        
+        # 计算指尖到手腕和PIP到手腕的距离
+        tip_to_wrist_dist = HandUtils.calculate_distance(tip, wrist)
+        pip_to_wrist_dist = HandUtils.calculate_distance(pip, wrist)
+        
+        # 如果指尖到手腕的距离小于PIP到手腕的距离，说明手指弯曲
+        return tip_to_wrist_dist < pip_to_wrist_dist * 0.9
     
     @staticmethod
     def calculate_thumb_angle(landmarks: List[List[int]]) -> float:
@@ -198,73 +205,6 @@ class HandUtils:
         return fingers_distance > palm_base_length * reference_length_ratio
     
     @staticmethod
-    def draw_palm_center(img, palm_center: Tuple[int, int], color: Tuple[int, int, int] = (0, 255, 255)):
-        """
-        在图像上绘制手掌中心
-        Args:
-            img: 图像
-            palm_center: 手掌中心坐标
-            color: 颜色 (B, G, R)
-        """
-        cv2.circle(img, palm_center, 8, color, -1)  # 填充圆
-        cv2.circle(img, palm_center, 12, (0, 0, 0), 2)  # 黑色边框
-    
-    @staticmethod
-    def draw_text_info(img, hand_type: str, info_dict: dict, position_offset: int = 0):
-        """
-        在图像上绘制手部信息
-        Args:
-            img: 图像
-            hand_type: 手部类型
-            info_dict: 信息字典
-            position_offset: Y轴位置偏移
-        """
-        y_start = 50 + position_offset
-        line_height = 20
-        
-        # 绘制手部类型
-        cv2.putText(img, f'{hand_type} Hand:', 
-                   (50, y_start), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-        
-        # 绘制详细信息
-        for i, (key, value) in enumerate(info_dict.items()):
-            y_pos = y_start + (i + 1) * line_height
-            text = f'  {key}: {value}'
-            cv2.putText(img, text, 
-                       (50, y_pos), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1)
-    
-    @staticmethod
-    def draw_gesture_message(img, message: str, color: Tuple[int, int, int] = (0, 255, 0)):
-        """
-        在图像底部绘制手势消息
-        Args:
-            img: 图像
-            message: 消息文本
-            color: 文本颜色
-        """
-        cv2.putText(img, message, (50, img.shape[0] - 50), 
-                   cv2.FONT_HERSHEY_SIMPLEX, 1, color, 3)
-    
-    @staticmethod
-    def draw_fps(img, fps: float, color: Tuple[int, int, int] = (255, 255, 255)):
-        """
-        在图像右上角绘制FPS信息
-        Args:
-            img: 图像
-            fps: FPS值
-            color: 文本颜色
-        """
-        fps_text = f"FPS: {fps:.1f}"
-        text_size = cv2.getTextSize(fps_text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)[0]
-        x = img.shape[1] - text_size[0] - 10  # 右边距10像素
-        y = 30  # 顶部距离30像素
-        
-        # 绘制背景矩形
-        cv2.rectangle(img, (x - 5, y - 20), (x + text_size[0] + 5, y + 5), (0, 0, 0), -1)
-        # 绘制FPS文本
-        cv2.putText(img, fps_text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
-    
-    @staticmethod
     def is_thumb_close_to_palm(landmarks: List[List[int]], distance_threshold_percent: float = 0.4) -> bool:
         """
         判断拇指是否靠近掌心
@@ -318,6 +258,23 @@ class HandUtils:
                     current_pos = trail[-1]
                     cv2.circle(img, current_pos, 8, center_color, -1)
                     cv2.circle(img, current_pos, 10, trail_color, 2)
+
+    @staticmethod
+    def is_hand_upward(landmarks: List[List[int]]) -> bool:
+        """
+        检查手是否向上
+        Args:
+            landmarks: 手部关键点列表
+        Returns:
+            手是否向上
+        """
+        wrist = landmarks[0]
+        
+        # 检查手指尖的y坐标是否都小于手腕的y坐标
+        fingertips = [landmarks[i] for i in HandUtils.FINGERTIPS]
+        upward_fingers = sum(1 for tip in fingertips if tip[1] < wrist[1])
+        
+        return upward_fingers == 5
     
     @staticmethod
     def detect_palm_back_orientation(landmarks: List[List[int]], hand_type: Optional[str] = None) -> str:
@@ -343,26 +300,22 @@ class HandUtils:
         ring_tip = landmarks[16]    # 无名指尖
         pinky_tip = landmarks[20]   # 小指尖
         
-        # 计算拇指相对于其他四指的位置
-        other_fingers_x = [index_tip[0], middle_tip[0], ring_tip[0], pinky_tip[0]]
-        avg_other_x = sum(other_fingers_x) / len(other_fingers_x)
-        thumb_relative_position = thumb_tip[0] - avg_other_x
+        left_thumb_position = thumb_tip[0] < index_tip[0] < middle_tip[0] < ring_tip[0] < pinky_tip[0]
+        right_thumb_position = thumb_tip[0] > index_tip[0] > middle_tip[0] > ring_tip[0] > pinky_tip[0]
         
         # 根据手的类型和拇指位置判断朝向
         if hand_type == "Left":
-            # 左手：拇指在右边(positive)表示手心朝向，拇指在左边(negative)表示手背朝向
-            if thumb_relative_position > 15:  # 拇指明显在右边
-                return "palm"
-            elif thumb_relative_position < -15:  # 拇指明显在左边
+            if left_thumb_position:
                 return "back"
+            elif right_thumb_position:
+                return "palm"
             else:
                 return "uncertain"
         else:  # Right hand
-            # 右手：拇指在左边(negative)表示手心朝向，拇指在右边(positive)表示手背朝向
-            if thumb_relative_position < -15:  # 拇指明显在左边
+            if right_thumb_position:
+                return "bacl"
+            elif left_thumb_position:
                 return "palm"
-            elif thumb_relative_position > 15:  # 拇指明显在右边
-                return "back"
             else:
                 return "uncertain"
             
@@ -405,28 +358,11 @@ class HandUtils:
         return close_fingers == 5  # 所有5根手指都必须接近掌心
     
     @staticmethod
-    def is_hand_upward(landmarks: List[List[int]]) -> bool:
-        """
-        检查手是否向上
-        Args:
-            landmarks: 手部关键点列表
-        Returns:
-            手是否向上
-        """
-        wrist = landmarks[0]
-        
-        # 检查手指尖的y坐标是否都小于手腕的y坐标
-        fingertips = [landmarks[i] for i in HandUtils.FINGERTIPS]
-        upward_fingers = sum(1 for tip in fingertips if tip[1] < wrist[1])
-        
-        return upward_fingers == 5
-    
-    @staticmethod
     def check_two_finger_pose(landmarks: List[List[int]], palm_base_length: float, finger_distance_threshold: float) -> bool:
         """检查是否为双指姿态（食指和中指并拢朝上，其他手指弯曲）"""
         # 1. 检查食指和中指是否伸直且朝上
-        index_extended = HandUtils.is_finger_extended(landmarks, 8, 6, 5, 0.6)
-        middle_extended = HandUtils.is_finger_extended(landmarks, 12, 10, 9, 0.6)
+        index_extended = HandUtils.is_finger_extended_and_upward(landmarks, 8, 6, 5, 0.6)
+        middle_extended = HandUtils.is_finger_extended_and_upward(landmarks, 12, 10, 9, 0.6)
         
         # 2. 检查无名指和小指是否弯曲
         ring_bent = HandUtils.is_finger_bent(landmarks, 16, 14)

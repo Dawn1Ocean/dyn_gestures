@@ -10,6 +10,7 @@ from cvzone.HandTrackingModule import HandDetector
 from gesture_manager import GestureManager
 from hand_utils import HandUtils
 from socket_client import initialize_socket_client, disconnect_socket_client
+from display import Display
 
 
 class HandGestureApp:
@@ -27,9 +28,7 @@ class HandGestureApp:
         
         # 初始化手部检测器
         self.detector = HandDetector(
-            # staticMode=config.HAND_DETECTION_CONFIG['static_mode'],
             maxHands=config.HAND_DETECTION_CONFIG['max_hands'],
-            # modelComplexity=config.HAND_DETECTION_CONFIG['model_complexity'],
             detectionCon=config.HAND_DETECTION_CONFIG['detection_confidence'],
             minTrackCon=config.HAND_DETECTION_CONFIG['min_tracking_confidence']
         )
@@ -39,10 +38,8 @@ class HandGestureApp:
         
         # 初始化Socket客户端（如果启用）
         if config.DISPLAY_CONFIG.get('gesture_output', {}).get('enable_socket_output', True):
-            self.socket_initialized = initialize_socket_client(
-                debug_mode=False, 
-            )
-        
+            self.socket_initialized = initialize_socket_client(debug_mode=config.IS_DEBUG)
+
         # 显示状态
         self.gesture_message = ""
         self.gesture_timer = 0
@@ -93,7 +90,7 @@ class HandGestureApp:
         # 记录当前帧的手部ID
         current_hand_ids = set()
         
-        if hands:  
+        if hands:
             for i, hand in enumerate(hands):
                 hand_id = f"hand_{i}"
                 current_hand_ids.add(hand_id)
@@ -108,11 +105,11 @@ class HandGestureApp:
                 if detected_gestures:
                     # 处理检测到的手势
                     for gesture in detected_gestures:
-                        self.handle_gesture_result(gesture, hand_id)
+                        self.handle_gesture_result(gesture)
                 
                 # 绘制手部信息
-                self.draw_hand_info(img, hand, i)
-                
+                Display.draw_hand_info(img, hand, i, self.detector)
+
                 # 更新手部记录
                 self.previous_hands[hand_id] = {
                     'landmarks': landmarks,
@@ -139,7 +136,7 @@ class HandGestureApp:
             from gestures.dynamic.hand_close import HandCloseDetector
             if isinstance(hand_close_detector, HandCloseDetector):
                 trail_data = hand_close_detector.get_trail_data_for_drawing()
-                if trail_data and hand_close_detector.enable_tracking:
+                if trail_data and hand_close_detector.tracking_config.get('enable_tracking', True):
                     HandUtils.draw_fist_trails(
                         img, 
                         trail_data['trail_points'], 
@@ -151,53 +148,23 @@ class HandGestureApp:
         
         # 绘制手势消息
         if self.gesture_timer > 0:
-            HandUtils.draw_gesture_message(img, self.gesture_message, config.COLORS['gesture_message'])
+            Display.draw_gesture_message(img, self.gesture_message, config.COLORS['gesture_message'])
             self.gesture_timer -= 1
         
         # 绘制FPS（如果配置启用）
         if config.DISPLAY_CONFIG['show_fps']:
-            HandUtils.draw_fps(img, self.current_fps, config.COLORS['fps_text'])
+            Display.draw_fps(img, self.current_fps, config.COLORS['fps_text'])
         
         return img
     
-    def handle_gesture_result(self, gesture_result, hand_id):
+    def handle_gesture_result(self, gesture_result):
         """处理手势检测结果"""
         gesture_name = gesture_result['gesture']
         hand_type = gesture_result['hand_type']
-        confidence = gesture_result.get('confidence', 0)
         
         # 使用检测器提供的显示消息
         self.gesture_message = gesture_result.get('display_message', f"{hand_type} Hand: {gesture_name}")
         self.gesture_timer = config.DISPLAY_CONFIG['gesture_message_duration']
-
-        # 注意：输出管理已经在gesture_manager中处理，这里不需要重复调用
-        # output_gesture_detection(gesture_result, hand_id) # 已在gesture_manager中调用
-    
-    def draw_hand_info(self, img, hand, hand_index):
-        """绘制手部信息"""
-        landmarks = hand["lmList"]
-        hand_type = hand["type"]
-        
-        # 计算并绘制手掌中心
-        palm_center = HandUtils.calculate_palm_center(landmarks)
-        if config.DISPLAY_CONFIG['show_palm_center']:
-            HandUtils.draw_palm_center(img, palm_center, config.COLORS['palm_center'])
-        
-        # 计算手指数量（使用cvzone的方法）
-        fingers = self.detector.fingersUp(hand)
-        finger_count = fingers.count(1)
-        
-        # 准备显示信息
-        info_dict = {
-            'Fingers': finger_count,
-            'Palm': f'({palm_center[0]}, {palm_center[1]})'
-        }
-        
-        # 绘制信息
-        HandUtils.draw_text_info(
-            img, hand_type, info_dict, 
-            position_offset=hand_index * 120
-        )
     
     def handle_window_events(self):
         """处理窗口事件"""

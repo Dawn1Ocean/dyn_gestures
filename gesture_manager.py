@@ -29,91 +29,18 @@ class GestureManager:
     def setup_default_detectors(self):
         """设置默认的手势检测器"""
         # 添加动态手势检测器
-        hand_open_config = config.GESTURE_CONFIG['hand_open']
-        self.add_detector(HandOpenDetector(
-            variance_change_percent=hand_open_config['variance_change_percent'],
-            distance_multiplier=hand_open_config['distance_multiplier'],
-            history_length=hand_open_config['history_length'],
-            cooldown_frames=hand_open_config['cooldown_frames']
-        ))
-        
-        hand_close_config = config.GESTURE_CONFIG['hand_close']
-        self.add_detector(HandCloseDetector(
-            variance_change_percent=hand_close_config['variance_change_percent'],
-            distance_multiplier=hand_close_config['distance_multiplier'],
-            history_length=hand_close_config['history_length'],
-            fist_hold_frames=hand_close_config['fist_hold_frames'],
-            cooldown_frames=hand_close_config['cooldown_frames']
-        ))
-        
-        hand_swipe_config = config.GESTURE_CONFIG['hand_swipe']
-        self.add_detector(HandSwipeDetector(
-            min_distance_percent=hand_swipe_config['min_distance_percent'],
-            min_movement_frames=hand_swipe_config['min_movement_frames'],
-            history_length=hand_swipe_config['history_length'],
-            cooldown_frames=hand_swipe_config['cooldown_frames']
-        ))
-        
-        two_finger_swipe_config = config.GESTURE_CONFIG['two_finger_swipe']
-        self.add_detector(TwoFingerSwipeDetector(
-            min_distance_percent=two_finger_swipe_config['min_distance_percent'],
-            min_movement_frames=two_finger_swipe_config['min_movement_frames'],
-            history_length=two_finger_swipe_config['history_length'],
-            finger_distance_threshold=two_finger_swipe_config['finger_distance_threshold'],
-            cooldown_frames=two_finger_swipe_config['cooldown_frames']
-        ))
-        
-        hand_flip_config = config.GESTURE_CONFIG['hand_flip']
-        self.add_detector(HandFlipDetector(
-            max_movement_percent=hand_flip_config['max_movement_percent'],
-            min_flip_frames=hand_flip_config['min_flip_frames'],
-            history_length=hand_flip_config['history_length'],
-            cooldown_frames=hand_flip_config['cooldown_frames']
-        ))
+        self.add_detector(HandOpenDetector(config = config.GESTURE_CONFIG['hand_open']))
+        self.add_detector(HandCloseDetector(config = config.GESTURE_CONFIG['hand_close']))
+        self.add_detector(HandSwipeDetector(config = config.GESTURE_CONFIG['hand_swipe']))
+        self.add_detector(TwoFingerSwipeDetector(config = config.GESTURE_CONFIG['two_finger_swipe']))
+        self.add_detector(HandFlipDetector(config = config.GESTURE_CONFIG['hand_flip']))
         
         # 添加静态手势检测器
-        finger_one_config = config.GESTURE_CONFIG['finger_count_one']
-        self.add_detector(FingerCountOneDetector(
-            distance_threshold_percent=finger_one_config['distance_threshold_percent'],
-            required_frames=finger_one_config['required_frames'],
-            debounce_frames=finger_one_config['debounce_frames']
-        ))
-        
-        finger_two_config = config.GESTURE_CONFIG['finger_count_two']
-        self.add_detector(FingerCountTwoDetector(
-            distance_threshold_percent=finger_two_config['distance_threshold_percent'],
-            required_frames=finger_two_config['required_frames'],
-            debounce_frames=finger_two_config['debounce_frames']
-        ))
-        
-        finger_three_config = config.GESTURE_CONFIG['finger_count_three']
-        self.add_detector(FingerCountThreeDetector(
-            distance_threshold_percent=finger_three_config['distance_threshold_percent'],
-            required_frames=finger_three_config['required_frames'],
-            debounce_frames=finger_three_config['debounce_frames']
-        ))
-        
-        thumbs_up_config = config.GESTURE_CONFIG['thumbs_up']
-        self.add_detector(ThumbsDetector(
-            thumb_distance_threshold=thumbs_up_config['thumb_distance_threshold'],
-            other_fingers_threshold=thumbs_up_config['other_fingers_threshold'],
-            thumb_angle_threshold=thumbs_up_config['thumb_angle_threshold'],
-            thumb_isolation_threshold=thumbs_up_config['thumb_isolation_threshold'],
-            required_frames=thumbs_up_config['required_frames'],
-            debounce_frames=thumbs_up_config['debounce_frames'],
-            type="ThumbsUp"
-        ))
-
-        thumbs_down_config = config.GESTURE_CONFIG['thumbs_down']
-        self.add_detector(ThumbsDetector(
-            thumb_distance_threshold=thumbs_down_config['thumb_distance_threshold'],
-            other_fingers_threshold=thumbs_down_config['other_fingers_threshold'],
-            thumb_angle_threshold=thumbs_down_config['thumb_angle_threshold'],
-            thumb_isolation_threshold=thumbs_down_config['thumb_isolation_threshold'],
-            required_frames=thumbs_down_config['required_frames'],
-            debounce_frames=thumbs_down_config['debounce_frames'],
-            type="ThumbsDown"
-        ))
+        self.add_detector(FingerCountOneDetector(config = config.GESTURE_CONFIG['finger_count_one']))
+        self.add_detector(FingerCountTwoDetector(config = config.GESTURE_CONFIG['finger_count_two']))
+        self.add_detector(FingerCountThreeDetector(config = config.GESTURE_CONFIG['finger_count_three']))
+        self.add_detector(ThumbsDetector(config = config.GESTURE_CONFIG['thumbs_up'], type="ThumbsUp"))
+        self.add_detector(ThumbsDetector(config = config.GESTURE_CONFIG['thumbs_down'], type="ThumbsDown"))
     
     def add_detector(self, detector: GestureDetector):
         """添加新的手势检测器"""
@@ -136,24 +63,23 @@ class GestureManager:
             if isinstance(detector, StaticGestureDetector):
                 try:
                     # 检测当前手势
-                    current_result = detector.detect(landmarks, hand_id, hand_type)
+                    result = detector.detect(landmarks, hand_id, hand_type)
                     
                     # 如果检测到手势且满足输出条件，添加到结果并直接发送
-                    if current_result and detector.should_output_gesture(hand_id):
+                    if result and detector.should_output_gesture(hand_id):
                         # 添加显示消息
-                        current_result['display_message'] = detector.get_display_message(current_result)
-                        results.append(current_result)
+                        result['display_message'] = detector.get_display_message(result)
+                        results.append(result)
                         
                         # 直接发送手势检测结果
                         from gesture_output import output_gesture_detection
-                        output_gesture_detection(current_result, hand_id)
-                        
+                        output_gesture_detection(result, hand_id)
+
                 except Exception as e:
                     print(f"静态手势检测器 {detector.name} 出错: {e}")
-        
-        # 然后检测动态手势
-        for detector in self.detectors:
-            if not isinstance(detector, StaticGestureDetector):
+            
+            # 然后检测动态手势
+            else:
                 try:
                     result = detector.detect(landmarks, hand_id, hand_type)
                     if result:

@@ -11,21 +11,17 @@ from ..base import StaticGestureDetector
 class FingerCountTwoDetector(StaticGestureDetector):
     """数字二手势检测器（食指和中指伸出）"""
     
-    def __init__(self, distance_threshold_percent: float = 0.6, required_frames: int = 30, debounce_frames: int = 5):
-        super().__init__("FingerCountTwo", required_frames, debounce_frames)
-        self.distance_threshold_percent = distance_threshold_percent
-    
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__("FingerCountTwo", config['required_frames'], config['debounce_frames'])
+        self.distance_threshold_percent = config['distance_threshold_percent']
+
     def detect(self, landmarks: List[List[int]], hand_id: str, hand_type: str) -> Optional[Dict[str, Any]]:
         """检测数字二手势 - 食指和中指伸出且朝上"""
         
         # 1. 检查食指和中指是否伸直且朝上 - 使用HandUtils的通用方法
-        index_extended = HandUtils.is_finger_extended(
-            landmarks, 8, 6, 5, self.distance_threshold_percent
-        )
-        middle_extended = HandUtils.is_finger_extended(
-            landmarks, 12, 10, 9, self.distance_threshold_percent
-        )
-        
+        index_extended = HandUtils.is_finger_extended_and_upward(landmarks, 8, 6, 5, self.distance_threshold_percent)
+        middle_extended = HandUtils.is_finger_extended_and_upward(landmarks, 12, 10, 9, self.distance_threshold_percent)
+
         # 2. 检查无名指和小指是否弯曲 - 使用HandUtils的通用方法
         ring_bent = HandUtils.is_finger_bent(landmarks, 16, 14)
         pinky_bent = HandUtils.is_finger_bent(landmarks, 20, 18)
@@ -49,11 +45,6 @@ class FingerCountTwoDetector(StaticGestureDetector):
                     'confidence': confidence,
                     'details': {
                         'description': '数字二手势',
-                        'index_extended': index_extended,
-                        'middle_extended': middle_extended,
-                        'other_fingers_bent': ring_bent and pinky_bent,
-                        'fingers_spread': fingers_spread,
-                        'thumb_close_to_palm': thumb_close_to_palm,
                         'frames_detected': self.detection_history[hand_id]['count']
                     }
                 }
@@ -65,11 +56,7 @@ class FingerCountTwoDetector(StaticGestureDetector):
         base_confidence = 85
         
         # 获取关键点
-        wrist = landmarks[0]
-        index_tip = landmarks[8]
-        middle_tip = landmarks[12]
-        ring_tip = landmarks[16]
-        pinky_tip = landmarks[20]
+        wrist, index_tip, middle_tip, ring_tip, pinky_tip = landmarks[0], landmarks[8], landmarks[12], landmarks[16], landmarks[20]
         
         # 计算手掌基准长度
         palm_base_length = HandUtils.calculate_palm_base_length(landmarks)
@@ -93,10 +80,6 @@ class FingerCountTwoDetector(StaticGestureDetector):
             base_confidence += 5
         
         return min(100, base_confidence)
-    
-    def reset(self, hand_id: Optional[str] = None):
-        """重置静态手势检测状态"""
-        self.reset_detection_history(hand_id)
     
     def get_display_message(self, gesture_result: Dict[str, Any]) -> str:
         """获取数字二手势的显示消息"""

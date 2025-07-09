@@ -125,6 +125,10 @@ class StaticGestureDetector(GestureDetector):
             if hand_id in self.output_counters:
                 del self.output_counters[hand_id]
 
+    def reset(self, hand_id: Optional[str] = None):
+        """重置静态手势检测状态"""
+        self.reset_detection_history(hand_id)
+
 
 class DynamicGestureDetector(GestureDetector):
     """动态手势检测器基类"""

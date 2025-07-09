@@ -1,11 +1,12 @@
 [project]
 name = "cvzone-test"
-version = "0.1.0"
-description = "Add your description here"
+version = "0.2.0"
+description = "模块化手势检测应用，支持多种静态和动态手势识别"
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
     "mediapipe<=0.10.14",
-    "numpy",
-    "opencv-python>=4",
+    "numpy>=1.20.0",
+    "opencv-python>=4.5.0",
+    "psutil>=5.8.0",
 ]

@@ -226,38 +226,6 @@ class HandUtils:
         
         # 如果距离小于阈值，认为拇指靠近掌心
         return distance_ratio < distance_threshold_percent
-    
-    @staticmethod
-    def draw_fist_trails(img, trail_points_dict: dict, fist_active_dict: dict, 
-                        trail_color=(0, 255, 255), center_color=(0, 0, 255), trail_thickness=3):
-        """
-        在图像上绘制握拳轨迹
-        Args:
-            img: 图像
-            trail_points_dict: 轨迹点字典 {hand_id: deque of points}
-            fist_active_dict: 握拳活跃状态字典 {hand_id: bool}
-            trail_color: 轨迹线颜色 (B, G, R)
-            center_color: 当前位置圆点颜色 (B, G, R)
-            trail_thickness: 轨迹线基础粗细
-        """
-        for hand_id, is_active in fist_active_dict.items():
-            if is_active and hand_id in trail_points_dict:
-                trail = list(trail_points_dict[hand_id])
-                
-                if len(trail) > 1:
-                    # 绘制轨迹线
-                    for i in range(1, len(trail)):
-                        # 计算透明度（newer points more opaque）
-                        alpha = i / len(trail)
-                        thickness = max(1, int(trail_thickness * alpha))
-                        
-                        cv2.line(img, trail[i-1], trail[i], trail_color, thickness)
-                
-                # 绘制当前位置
-                if trail:
-                    current_pos = trail[-1]
-                    cv2.circle(img, current_pos, 8, center_color, -1)
-                    cv2.circle(img, current_pos, 10, trail_color, 2)
 
     @staticmethod
     def is_hand_upward(landmarks: List[List[int]]) -> bool:

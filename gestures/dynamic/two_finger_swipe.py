@@ -67,7 +67,7 @@ class TwoFingerSwipeDetector(DynamicGestureDetector):
     
     def _analyze_swipe_movement(self, hand_history: dict, palm_base_length: float, 
                               hand_type: str) -> Optional[Dict[str, Any]]:
-        """分析滑动运动模式 - 改进的双向检测逻辑"""
+        """分析滑动运动模式"""
         positions = list(hand_history['palm_positions'])
         
         if len(positions) < self.min_movement_frames:
@@ -161,7 +161,7 @@ class TwoFingerSwipeDetector(DynamicGestureDetector):
     def _calculate_confidence(self, total_distance: float, min_distance: float, 
                             consistent_frames: int, movement_speed: float,
                             direction_changes: int = 0, total_frames: int = 1) -> float:
-        """计算双指滑动手势的置信度 - 改进版本"""
+        """计算双指滑动手势的置信度"""
         base_confidence = 70  # 降低基础置信度，因为放宽了检测条件
         
         # 根据移动距离加分

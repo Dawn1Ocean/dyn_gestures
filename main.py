@@ -3,148 +3,160 @@
 """
 
 import cv2
-import time
 
 import config
 from cvzone.HandTrackingModule import HandDetector
 from gesture_manager import GestureManager
-from hand_utils import HandUtils
 from socket_client import initialize_socket_client, disconnect_socket_client
 from display import Display
+from camera_manager import CameraManager
+from performance_monitor import PerformanceMonitor
+from logger_config import setup_logger
+
+# 设置日志
+logger = setup_logger(__name__)
 
 
 class HandGestureApp:
     """手势检测应用主类"""
     
     def __init__(self):
-        # 初始化摄像头
-        self.cap = cv2.VideoCapture(config.CAMERA_INDEX)
-        # 设置摄像头分辨率
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, config.CAMERA_FRAME_WIDTH)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, config.CAMERA_FRAME_HEIGHT)
-        
-        # 设置摄像头FPS
-        self.cap.set(cv2.CAP_PROP_FPS, config.CAMERA_FPS)
-        
-        # 初始化手部检测器
-        self.detector = HandDetector(
-            maxHands=config.HAND_DETECTION_CONFIG['max_hands'],
-            detectionCon=config.HAND_DETECTION_CONFIG['detection_confidence'],
-            minTrackCon=config.HAND_DETECTION_CONFIG['min_tracking_confidence']
+        # 初始化日志和异常处理
+        self.logger = logger
+        # 初始化各个管理器
+        self.camera_manager = CameraManager()
+        self.performance_monitor = PerformanceMonitor(
+            fps_update_interval=config.DISPLAY_CONFIG['fps_update_interval']
         )
-        
-        # 初始化手势管理器
-        self.gesture_manager = GestureManager()
-        
-        # 初始化Socket客户端（如果启用）
-        if config.DISPLAY_CONFIG.get('gesture_output', {}).get('enable_socket_output', True):
-            self.socket_initialized = initialize_socket_client(debug_mode=config.IS_DEBUG)
-
+        # 初始化手部检测器
+        self.detector = None
+        self.gesture_manager = None
+        # Socket连接状态
+        self.socket_initialized = False
         # 显示状态
         self.gesture_message = ""
         self.gesture_timer = 0
-        
         # 运行状态
         self.running = True
-        
-        # FPS计算相关
-        self.fps_counter = 0
-        self.fps_start_time = time.time()
-        self.current_fps = 0.0
-        self.fps_update_interval = config.DISPLAY_CONFIG['fps_update_interval']
-        
         # 手势状态追踪
         self.previous_hands = {}  # {hand_id: hand_data}
     
+    def initialize(self) -> bool:
+        """初始化应用组件
+        
+        Returns:
+            bool: 初始化是否成功
+        """
+        try:
+            self.logger.info("正在初始化手势检测应用...")
+            
+            # 初始化摄像头
+            if not self.camera_manager.initialize():
+                self.logger.error("摄像头初始化失败")
+                return False
+            
+            # 初始化手部检测器
+            self.detector = HandDetector(
+                maxHands=config.HAND_DETECTION_CONFIG['max_hands'],
+                detectionCon=config.HAND_DETECTION_CONFIG['detection_confidence'],
+                minTrackCon=config.HAND_DETECTION_CONFIG['min_tracking_confidence']
+            )
+            self.logger.info("手部检测器初始化完成")
+            
+            # 初始化手势管理器
+            self.gesture_manager = GestureManager()
+            self.logger.info("手势管理器初始化完成")
+            
+            # 初始化Socket客户端（如果启用）
+            if config.DISPLAY_CONFIG.get('gesture_output', {}).get('enable_socket_output', True):
+                self.socket_initialized = initialize_socket_client(debug_mode=config.IS_DEBUG)
+                if self.socket_initialized:
+                    self.logger.info("Socket客户端初始化完成")
+            
+            # 启动性能监控
+            self.performance_monitor.start_system_monitoring()
+            
+            self.logger.info("应用初始化完成")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"应用初始化失败: {e}")
+            return False
+    
     def update_fps(self):
         """更新FPS计算"""
-        self.fps_counter += 1
-        
-        if self.fps_counter >= self.fps_update_interval:
-            current_time = time.time()
-            elapsed_time = current_time - self.fps_start_time
-            
-            if elapsed_time > 0:
-                self.current_fps = self.fps_counter / elapsed_time
-            
-            # 重置计数器
-            self.fps_counter = 0
-            self.fps_start_time = current_time
+        return self.performance_monitor.update_fps()
     
     def process_frame(self, img):
-        """处理单帧图像"""
-        # 更新FPS计算
-        self.update_fps()
-        
+        """处理单帧图像"""        
         # 左右翻转摄像头画面（如果配置启用）
         if config.DISPLAY_CONFIG['flip_image']:
             img = cv2.flip(img, 1)
         
         # 检测手部
-        hands, img = self.detector.findHands(
-            img, 
-            draw=config.DISPLAY_CONFIG['show_landmarks'], 
-            flipType=config.DISPLAY_CONFIG['flip_image']
-        )
+        if self.detector:
+            hands, img = self.detector.findHands(
+                img, 
+                draw=config.DISPLAY_CONFIG['show_landmarks'], 
+                flipType=config.DISPLAY_CONFIG['flip_image']
+            )
         
-        # 记录当前帧的手部ID
-        current_hand_ids = set()
+            # 记录当前帧的手部ID
+            current_hand_ids = set()
         
-        if hands:
-            for i, hand in enumerate(hands):
-                hand_id = f"hand_{i}"
-                current_hand_ids.add(hand_id)
-                landmarks = hand["lmList"]
-                hand_type = hand["type"]
-                
-                # 使用手势管理器检测手势
-                detected_gestures = self.gesture_manager.detect_gestures(
-                    landmarks, hand_id, hand_type
-                )
-
-                if detected_gestures:
-                    # 处理检测到的手势
-                    for gesture in detected_gestures:
-                        self.handle_gesture_result(gesture)
-                
-                # 绘制手部信息
-                Display.draw_hand_info(img, hand, i, self.detector)
-
-                # 更新手部记录
-                self.previous_hands[hand_id] = {
-                    'landmarks': landmarks,
-                    'hand_type': hand_type
-                }
-        
-        # 检测丢失的手部
-        lost_hand_ids = set(self.previous_hands.keys()) - current_hand_ids
-        for lost_hand_id in lost_hand_ids:
-            self.gesture_manager.on_hand_lost(lost_hand_id)
-            del self.previous_hands[lost_hand_id]
-        
-        # 如果没有检测到任何手
-        if not hands:
-            # 清空所有手部记录
-            if self.previous_hands:
-                self.gesture_manager.on_all_hands_lost()
-                self.previous_hands.clear()
-        
-        # 绘制握拳轨迹（在其他绘制之前）
-        hand_close_detector = self.gesture_manager.get_detector_by_name("HandClose")
-        if hand_close_detector and hasattr(hand_close_detector, 'get_trail_data_for_drawing'):
-            # 类型转换确保能访问方法
-            from gestures.dynamic.hand_close import HandCloseDetector
-            if isinstance(hand_close_detector, HandCloseDetector):
-                trail_data = hand_close_detector.get_trail_data_for_drawing()
-                if trail_data and hand_close_detector.tracking_config.get('enable_tracking', True):
-                    HandUtils.draw_fist_trails(
-                        img, 
-                        trail_data['trail_points'], 
-                        trail_data['fist_active'],
-                        config.COLORS['fist_trail'],
-                        config.COLORS['fist_center'],
-                        trail_data['trail_thickness']
+            if hands and self.gesture_manager is not None:
+                for i, hand in enumerate(hands):
+                    hand_id = f"hand_{i}"
+                    current_hand_ids.add(hand_id)
+                    landmarks = hand["lmList"]
+                    hand_type = hand["type"]
+                    
+                    # 使用手势管理器检测手势
+                    detected_gestures = self.gesture_manager.detect_gestures(
+                        landmarks, hand_id, hand_type
                     )
+
+                    if detected_gestures:
+                        # 处理检测到的手势
+                        for gesture in detected_gestures:
+                            self.handle_gesture_result(gesture)
+                    
+                    # 绘制手部信息
+                    Display.draw_hand_info(img, hand, i, self.detector)
+
+                    # 更新手部记录
+                    self.previous_hands[hand_id] = {
+                        'landmarks': landmarks,
+                        'hand_type': hand_type
+                    }
+        
+            if self.gesture_manager:
+                # 检测丢失的手部
+                lost_hand_ids = set(self.previous_hands.keys()) - current_hand_ids
+                for lost_hand_id in lost_hand_ids:
+                    self.gesture_manager.on_hand_lost(lost_hand_id)
+                    del self.previous_hands[lost_hand_id]
+                
+                # 如果没有检测到任何手
+                if not hands:
+                    # 清空所有手部记录
+                    if self.previous_hands:
+                        self.gesture_manager.on_all_hands_lost()
+                        self.previous_hands.clear()
+            
+                # 绘制手势轨迹（在其他绘制之前）
+                hand_close_detector = self.gesture_manager.get_detector_by_name("HandClose")
+                if hand_close_detector:
+                    trail_data = hand_close_detector.trajectory_tracker.get_trail_data_for_drawing()
+                    if trail_data and hand_close_detector.trajectory_tracker.tracking_config.get('enable_tracking', True):
+                        Display.draw_gesture_trails(
+                            img, 
+                            trail_data['trail_points'], 
+                            trail_data['tracking_active'],
+                            config.COLORS['fist_trail'],
+                            config.COLORS['fist_center'],
+                            trail_data['trail_thickness']
+                        )
         
         # 绘制手势消息
         if self.gesture_timer > 0:
@@ -153,7 +165,7 @@ class HandGestureApp:
         
         # 绘制FPS（如果配置启用）
         if config.DISPLAY_CONFIG['show_fps']:
-            Display.draw_fps(img, self.current_fps, config.COLORS['fps_text'])
+            Display.draw_fps(img, self.update_fps(), config.COLORS['fps_text'])
         
         return img
     
@@ -184,23 +196,24 @@ class HandGestureApp:
     
     def run(self):
         """运行主循环"""
-        print("启动手势检测应用...")
-        print("按 'q' 键或关闭窗口退出")
+        self.logger.info("启动手势检测应用...")
+        self.logger.info("按 'q' 键或关闭窗口退出")
         
         # 显示摄像头设置信息
-        actual_fps = self.cap.get(cv2.CAP_PROP_FPS)
-        print(f"摄像头FPS设置: {config.CAMERA_FPS}, 实际FPS: {actual_fps:.1f}")
+        if self.camera_manager.cap:
+            actual_fps = self.camera_manager.cap.get(cv2.CAP_PROP_FPS)
+            self.logger.info(f"摄像头FPS设置: {config.CAMERA_FPS}, 实际FPS: {actual_fps:.1f}")
         
         # 检查是否显示摄像头窗口
         if not config.DISPLAY_CONFIG['show_camera_window']:
-            print("摄像头画面显示已禁用，只进行后台手势检测")
+            self.logger.info("摄像头画面显示已禁用，只进行后台手势检测")
         
         if config.DISPLAY_CONFIG['show_fps']:
-            print("FPS显示已启用")
+            self.logger.info("FPS显示已启用")
         
         while self.running:
             # 读取帧
-            success, img = self.cap.read()
+            success, img = self.camera_manager.read_frame()
             if not success:
                 print("无法读取摄像头数据")
                 continue
@@ -226,8 +239,13 @@ class HandGestureApp:
     
     def cleanup(self):
         """清理资源"""
-        print("\n正在关闭应用...")
-        self.cap.release()
+        self.logger.info("正在关闭应用...")
+        
+        # 停止性能监控
+        self.performance_monitor.stop_system_monitoring()
+        
+        # 释放摄像头
+        self.camera_manager.release()
         
         # 断开Socket连接
         if self.socket_initialized:
@@ -237,18 +255,29 @@ class HandGestureApp:
         if config.DISPLAY_CONFIG['show_camera_window']:
             cv2.destroyAllWindows()
         
-        print("应用已关闭")
+        self.logger.info("应用已关闭")
 
 
 def main():
     """主函数"""
+    app = None
     try:
         app = HandGestureApp()
+        
+        # 初始化应用
+        if not app.initialize():
+            logger.error("应用初始化失败")
+        
+        # 运行应用
         app.run()
+        
     except KeyboardInterrupt:
-        print("\n用户中断程序")
+        logger.info("用户中断程序")
     except Exception as e:
-        print(f"程序出错: {e}")
+        logger.error(f"程序出错: {e}")
+    finally:
+        if app:
+            app.cleanup()
 
 
 if __name__ == "__main__":

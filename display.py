@@ -99,3 +99,35 @@ class Display:
             img, hand_type, info_dict, 
             position_offset=hand_index * 120
         )
+
+    @staticmethod
+    def draw_gesture_trails(img, trail_points_dict: dict, tracking_active_dict: dict, 
+                           trail_color=(0, 255, 255), center_color=(0, 0, 255), trail_thickness=3):
+        """
+        在图像上绘制手势轨迹（通用版本）
+        Args:
+            img: 图像
+            trail_points_dict: 轨迹点字典 {hand_id: deque of points}
+            tracking_active_dict: 追踪活跃状态字典 {hand_id: bool}
+            trail_color: 轨迹线颜色 (B, G, R)
+            center_color: 当前位置圆点颜色 (B, G, R)
+            trail_thickness: 轨迹线基础粗细
+        """
+        for hand_id, is_active in tracking_active_dict.items():
+            if is_active and hand_id in trail_points_dict:
+                trail = list(trail_points_dict[hand_id])
+                
+                if len(trail) > 1:
+                    # 绘制轨迹线
+                    for i in range(1, len(trail)):
+                        # 计算透明度（newer points more opaque）
+                        alpha = i / len(trail)
+                        thickness = max(1, int(trail_thickness * alpha))
+                        
+                        cv2.line(img, trail[i-1], trail[i], trail_color, thickness)
+                
+                # 绘制当前位置
+                if trail:
+                    current_pos = trail[-1]
+                    cv2.circle(img, current_pos, 8, center_color, -1)
+                    cv2.circle(img, current_pos, 10, trail_color, 2)

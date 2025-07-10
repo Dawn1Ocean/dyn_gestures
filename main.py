@@ -8,7 +8,7 @@ import time
 import config
 from cvzone.HandTrackingModule import HandDetector
 from gestures.manager import GestureManager
-from connect.socket_client import initialize_socket_client, disconnect_socket_client
+from connect.socket_client import initialize_client, disconnect_client
 from display import Display
 from camera_manager import CameraManager
 from logger_config import setup_logger
@@ -79,7 +79,7 @@ class HandGestureApp:
             
             # 初始化Socket客户端（如果启用）
             if config.DISPLAY_CONFIG.get('gesture_output', {}).get('enable_socket_output', True):
-                self.socket_initialized = initialize_socket_client(debug_mode=config.IS_DEBUG)
+                self.socket_initialized = initialize_client(debug_mode=config.IS_DEBUG)
                 if self.socket_initialized:
                     self.logger.info("Socket客户端初始化完成")
             
@@ -261,7 +261,7 @@ class HandGestureApp:
         
         # 断开Socket连接
         if self.socket_initialized:
-            disconnect_socket_client()
+            disconnect_client()
         
         # 只有在显示窗口时才需要销毁窗口
         if config.DISPLAY_CONFIG['show_camera_window']:

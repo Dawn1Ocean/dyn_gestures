@@ -149,6 +149,7 @@ GESTURE_CONFIG = {
 # ==============================================================================
 GESTURE_TYPES = {
     'static_gestures': ['FingerCountOne', 'FingerCountTwo', 'FingerCountThree', 'ThumbsUp', 'ThumbsDown'],
+    'tracker_gestures': ['HandClose'],
     'dynamic_gestures': ['HandOpen', 'HandClose', 'HandSwipe', 'HandFlip'],
     'confidence_threshold_for_update': 5.0  # 静态手势置信度变化阈值
 }

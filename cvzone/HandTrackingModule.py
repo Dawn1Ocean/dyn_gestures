@@ -3,7 +3,6 @@ import time
 
 import cv2
 import mediapipe as mp
-import numpy as np
 
 # 导入新的 Task API 模块
 from mediapipe.tasks import python
@@ -16,7 +15,7 @@ class HandDetector:
     支持 GPU Delegate 设置。
     """
 
-    def __init__(self, staticMode=False, maxHands=2, modelComplexity=1, detectionCon=0.5, minTrackCon=0.5):
+    def __init__(self, maxHands=2, detectionCon=0.5, minTrackCon=0.5):
         """
         :param staticMode: 对于视频流，推荐为 False。这会影响 running_mode。
         :param maxHands: 要检测的最大手数。
@@ -219,7 +218,7 @@ def main():
     cap = cv2.VideoCapture(0)
     # 确保模型文件 'hand_landmarker.task' 存在
     try:
-        detector = HandDetector(staticMode=False, maxHands=2, detectionCon=0.5, minTrackCon=0.5)
+        detector = HandDetector(maxHands=2, detectionCon=0.5, minTrackCon=0.5)
         if detector.using_gpu:
             print("HandDetector 初始化成功，正在使用 GPU...")
         else:
@@ -254,7 +253,8 @@ def main():
                                                           scale=10)
             print(" ")
 
-        cv2.imshow("Image", img)
+        if img:
+            cv2.imshow("Image", img)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 

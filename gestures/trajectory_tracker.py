@@ -5,7 +5,7 @@
 from collections import deque
 from typing import Dict, Any, Optional, Tuple
 
-from gesture_output import output_trail_change_with_threshold
+from gestures.output import output_trail_change_with_threshold
 
 
 class TrajectoryTracker:

@@ -5,19 +5,16 @@
 from typing import List, Dict, Any, Optional
 
 import config
-from gestures import (
-    GestureDetector, 
-    StaticGestureDetector,
-    HandOpenDetector,
-    HandCloseDetector,
-    HandSwipeDetector,
-    HandFlipDetector,
-    TwoFingerSwipeDetector,
-    FingerCountOneDetector,
-    FingerCountTwoDetector,
-    FingerCountThreeDetector,
-    ThumbsDetector
-)
+from gestures.base import GestureDetector, StaticGestureDetector, TrackerGestureDetector
+from gestures.dynamic.hand_open import HandOpenDetector
+from gestures.dynamic.hand_close import HandCloseDetector
+from gestures.dynamic.hand_swipe import HandSwipeDetector
+from gestures.dynamic.hand_flip import HandFlipDetector
+from gestures.dynamic.two_finger_swipe import TwoFingerSwipeDetector
+from gestures.static.finger_count_one import FingerCountOneDetector
+from gestures.static.finger_count_two import FingerCountTwoDetector
+from gestures.static.finger_count_three import FingerCountThreeDetector
+from gestures.static.thumbs import ThumbsDetector
 
 class GestureManager:
     """手势管理器，负责管理和协调所有手势检测器"""
@@ -72,7 +69,7 @@ class GestureManager:
                         results.append(result)
                         
                         # 直接发送手势检测结果
-                        from gesture_output import output_gesture_detection
+                        from gestures.output import output_gesture_detection
                         output_gesture_detection(result, hand_id)
 
                 except Exception as e:
@@ -88,7 +85,7 @@ class GestureManager:
                         results.append(result)
                         
                         # 直接发送手势检测结果
-                        from gesture_output import output_gesture_detection
+                        from gestures.output import output_gesture_detection
                         output_gesture_detection(result, hand_id)
                 except Exception as e:
                     print(f"动态手势检测器 {detector.name} 出错: {e}")
@@ -107,6 +104,10 @@ class GestureManager:
                 return detector
         return None
     
+    def get_all_tracker_detectors(self) -> List[TrackerGestureDetector]:
+        """获取所有轨迹检测器"""
+        return [d for d in self.detectors if isinstance(d, TrackerGestureDetector)]
+
     def on_hand_lost(self, hand_id: str):
         """
         当手部丢失时调用，重置相关的检测历史

@@ -8,15 +8,15 @@ from typing import List, Dict, Any, Optional
 import numpy as np
 
 from hand_utils import HandUtils
-from trajectory_tracker import TrajectoryTracker
-from ..base import DynamicGestureDetector
+from gestures.trajectory_tracker import TrajectoryTracker
+from ..base import TrackerGestureDetector
 
 
-class HandCloseDetector(DynamicGestureDetector):
+class HandCloseDetector(TrackerGestureDetector):
     """张开到握拳手势检测器，支持轨迹追踪"""
     
     def __init__(self, config: Dict[str, Any]):
-        super().__init__("HandClose", config['history_length'], config['cooldown_frames'])
+        super().__init__("HandClose", config['tracking_config'], config['trajectory_smoothing'], config['history_length'], config['cooldown_frames'])
         self.variance_change_percent = config['variance_change_percent']  # 方差减少的百分比阈值
         self.distance_multiplier = config['distance_multiplier']  # 距离减少的倍数
         self.fist_hold_frames = config['fist_hold_frames']  # 握拳状态需要保持的帧数

@@ -5,6 +5,8 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional
 
+from gestures.trajectory_tracker import TrajectoryTracker
+
 
 class GestureDetector(ABC):
     """手势检测器抽象基类"""
@@ -178,3 +180,14 @@ class DynamicGestureDetector(GestureDetector):
             self.cooldown_counters.clear()
         elif hand_id in self.cooldown_counters:
             del self.cooldown_counters[hand_id]
+
+class TrackerGestureDetector(DynamicGestureDetector):
+    """轨迹追踪检测器基类"""
+    
+    def __init__(self, name: str, tracking_config, smoothing_config, history_length: int = 10, cooldown_frames: int = 30):
+        super().__init__(name, history_length, cooldown_frames)
+        self.trajectory_tracker = TrajectoryTracker(tracking_config, smoothing_config)
+
+    def get_trajectory_tracker(self) -> TrajectoryTracker:
+        """获取轨迹追踪器实例"""
+        return self.trajectory_tracker

@@ -3,14 +3,14 @@
 """
 
 import cv2
+import time
 
 import config
 from cvzone.HandTrackingModule import HandDetector
-from gesture_manager import GestureManager
+from gestures.manager import GestureManager
 from socket_client import initialize_socket_client, disconnect_socket_client
 from display import Display
 from camera_manager import CameraManager
-from performance_monitor import PerformanceMonitor
 from logger_config import setup_logger
 
 # 设置日志
@@ -25,9 +25,6 @@ class HandGestureApp:
         self.logger = logger
         # 初始化各个管理器
         self.camera_manager = CameraManager()
-        self.performance_monitor = PerformanceMonitor(
-            fps_update_interval=config.DISPLAY_CONFIG['fps_update_interval']
-        )
         # 初始化手部检测器
         self.detector = None
         self.gesture_manager = None
@@ -40,6 +37,13 @@ class HandGestureApp:
         self.running = True
         # 手势状态追踪
         self.previous_hands = {}  # {hand_id: hand_data}
+        # FPS计算相关
+        self.fps_time = time.time()
+        self.fps_counter = 0
+        self.fps_display = 0.0
+        # FPS计算
+        self.prev_time = time.time()
+        self.fps = 0
     
     def initialize(self) -> bool:
         """初始化应用组件
@@ -73,9 +77,6 @@ class HandGestureApp:
                 if self.socket_initialized:
                     self.logger.info("Socket客户端初始化完成")
             
-            # 启动性能监控
-            self.performance_monitor.start_system_monitoring()
-            
             self.logger.info("应用初始化完成")
             return True
             
@@ -85,7 +86,16 @@ class HandGestureApp:
     
     def update_fps(self):
         """更新FPS计算"""
-        return self.performance_monitor.update_fps()
+        self.fps_counter += 1
+        current_time = time.time()
+        
+        # 每秒更新一次FPS显示
+        if current_time - self.fps_time >= 1.0:
+            self.fps_display = self.fps_counter / (current_time - self.fps_time)
+            self.fps_counter = 0
+            self.fps_time = current_time
+        
+        return self.fps_display
     
     def process_frame(self, img):
         """处理单帧图像"""        
@@ -145,11 +155,11 @@ class HandGestureApp:
                         self.previous_hands.clear()
             
                 # 绘制手势轨迹（在其他绘制之前）
-                hand_close_detector = self.gesture_manager.get_detector_by_name("HandClose")
-                if hand_close_detector:
-                    trail_data = hand_close_detector.trajectory_tracker.get_trail_data_for_drawing()
-                    if trail_data and hand_close_detector.trajectory_tracker.tracking_config.get('enable_tracking', True):
-                        Display.draw_gesture_trails(
+                for detector in self.gesture_manager.get_all_tracker_detectors():
+                    tracker = detector.get_trajectory_tracker()
+                    trail_data = tracker.get_trail_data_for_drawing()
+                    if trail_data and tracker.tracking_config.get('enable_tracking', True):
+                            Display.draw_gesture_trails(
                             img, 
                             trail_data['trail_points'], 
                             trail_data['tracking_active'],
@@ -240,9 +250,6 @@ class HandGestureApp:
     def cleanup(self):
         """清理资源"""
         self.logger.info("正在关闭应用...")
-        
-        # 停止性能监控
-        self.performance_monitor.stop_system_monitoring()
         
         # 释放摄像头
         self.camera_manager.release()

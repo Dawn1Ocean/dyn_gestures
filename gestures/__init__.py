@@ -4,6 +4,8 @@
 """
 
 from .base import GestureDetector, StaticGestureDetector, DynamicGestureDetector
+from .output import GestureOutputManager
+from .trajectory_tracker import TrajectoryTracker
 
 # 导入动态手势检测器
 from .dynamic.hand_open import HandOpenDetector
@@ -22,6 +24,8 @@ __all__ = [
     'GestureDetector', 
     'StaticGestureDetector', 
     'DynamicGestureDetector',
+    'GestureOutputManager',
+    'TrajectoryTracker',
     'HandOpenDetector',
     'HandCloseDetector',
     'HandSwipeDetector',

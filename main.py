@@ -24,7 +24,10 @@ class HandGestureApp:
         # 初始化日志和异常处理
         self.logger = logger
         # 初始化各个管理器
-        self.camera_manager = CameraManager()
+        self.camera_manager = CameraManager(
+            use_ip_camera=config.USE_IP_CAMERA,
+            ip_camera_url=config.IP_CAMERA_URL if config.USE_IP_CAMERA else None
+        )
         # 初始化手部检测器
         self.detector = None
         self.gesture_manager = None
@@ -58,6 +61,9 @@ class HandGestureApp:
             if not self.camera_manager.initialize():
                 self.logger.error("摄像头初始化失败")
                 return False
+            
+            # 输出摄像头信息
+            self.logger.info(f"摄像头信息: {self.camera_manager.get_camera_info()}")
             
             # 初始化手部检测器
             self.detector = HandDetector(
@@ -205,47 +211,46 @@ class HandGestureApp:
             self.running = False
     
     def run(self):
-        """运行主循环"""
-        self.logger.info("启动手势检测应用...")
-        self.logger.info("按 'q' 键或关闭窗口退出")
+        """运行主应用循环"""
+        if not self.initialize():
+            return
         
-        # 显示摄像头设置信息
-        if self.camera_manager.cap:
-            actual_fps = self.camera_manager.cap.get(cv2.CAP_PROP_FPS)
-            self.logger.info(f"摄像头FPS设置: {config.CAMERA_FPS}, 实际FPS: {actual_fps:.1f}")
+        self.logger.info("开始手势检测...")
+        self.logger.info(f"使用摄像头: {self.camera_manager.get_camera_info()}")
+        if config.USE_IP_CAMERA:
+            self.logger.info("远程摄像头提示：确保小米平板和PC在同一WiFi网络中")
         
-        # 检查是否显示摄像头窗口
-        if not config.DISPLAY_CONFIG['show_camera_window']:
-            self.logger.info("摄像头画面显示已禁用，只进行后台手势检测")
-        
-        if config.DISPLAY_CONFIG['show_fps']:
-            self.logger.info("FPS显示已启用")
-        
-        while self.running:
-            # 读取帧
-            success, img = self.camera_manager.read_frame()
-            if not success:
-                print("无法读取摄像头数据")
-                continue
-            
-            # 处理帧
-            img = self.process_frame(img)
-            
-            # 更新FPS
-            self.update_fps()
-            
-            # 显示图像（如果配置启用）
-            if config.DISPLAY_CONFIG['show_camera_window']:
-                cv2.imshow(config.DISPLAY_CONFIG['window_name'], img)
+        try:
+            while self.running:
+                # 读取摄像头帧
+                success, img = self.camera_manager.read_frame()
+                
+                if not success or img is None:
+                    if config.USE_IP_CAMERA:
+                        self.logger.warning("无法读取IP摄像头数据，请检查网络连接")
+                    else:
+                        self.logger.warning("无法读取本地摄像头数据")
+                    continue
+                
+                # 处理图像
+                processed_img = self.process_frame(img)
+                
+                # 显示图像（如果配置启用）
+                if config.DISPLAY_CONFIG['show_camera_window']:
+                    cv2.imshow(config.DISPLAY_CONFIG['window_name'], processed_img)
+                
                 # 处理窗口事件
                 self.handle_window_events()
-            else:
-                # 不显示窗口时，只检查键盘输入
-                key = cv2.waitKey(1) & 0xFF
-                if key == ord('q'):
-                    self.running = False
-        
-        self.cleanup()
+                
+                if not self.running:
+                    break
+                    
+        except KeyboardInterrupt:
+            self.logger.info("接收到中断信号，正在退出...")
+        except Exception as e:
+            self.logger.error(f"运行过程中出错: {e}")
+        finally:
+            self.cleanup()
     
     def cleanup(self):
         """清理资源"""

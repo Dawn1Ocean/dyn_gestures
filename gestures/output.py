@@ -8,7 +8,7 @@ import time
 from typing import Dict, Any
 
 import config
-from connect.socket_client import send_message_to_server
+from connect.socket_client import send_message
 
 
 class GestureOutputManager:
@@ -61,7 +61,7 @@ class GestureOutputManager:
                         message = f"TRAIL|{gesture_info['hand_id']}|{position[0]}|{position[1]}"
                     else:
                         message = "GESTURE|" + message
-                send_message_to_server(message, config.SOCKET_HOST, config.SOCKET_PORT)
+                send_message(message, host=config.SOCKET_HOST, port=config.SOCKET_PORT)
             except Exception as e:
                 if self.enable_console_output:
                     print(f"[GESTURE_OUTPUT] Socket发送失败: {e}")   

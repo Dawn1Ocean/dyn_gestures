@@ -14,9 +14,11 @@ CAMERA_FRAME_HEIGHT = 360       # 摄像头帧高度
 # ==============================================================================
 # 连接配置
 # ==============================================================================
-CONNECTION_MODE = 'socket'      # 连接模式：'socket' 或 'serial'
-SOCKET_HOST = '192.168.31.247'       # Socket 主机地址
+CONNECTION_TYPE = 'bluetooth'      # 连接类型：'socket' 或 'bluetooth'
+SOCKET_HOST = '192.168.31.247'  # Socket 主机地址
 SOCKET_PORT = 65432             # Socket 端口号
+BLUETOOTH_MAC = 'XX:XX:XX:XX:XX:XX'  # 蓝牙MAC地址
+BLUETOOTH_PORT = 4              # 蓝牙RFCOMM端口
 
 # ==============================================================================
 # 手势检测配置

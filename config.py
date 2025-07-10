@@ -26,8 +26,8 @@ IP_CAMERA_URL = "http://10.162.94.65:8080"  # IP摄像头URL (例如小米平板
 # ==============================================================================
 # 连接配置
 # ==============================================================================
-CONNECTION_TYPE = 'socket'      # 连接模式：'socket' 或 'serial'
-SOCKET_HOST = '192.168.31.247'       # Socket 主机地址
+CONNECTION_TYPE = 'serial'      # 连接模式：'socket' 或 'serial'
+SOCKET_HOST = '127.0.0.1'       # Socket 主机地址
 SOCKET_PORT = 65432             # Socket 端口号
 BLUETOOTH_MAC = 'XX:XX:XX:XX:XX:XX'  # 蓝牙MAC地址
 BLUETOOTH_PORT = 4              # 蓝牙RFCOMM端口

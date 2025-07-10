@@ -8,7 +8,7 @@ import time
 from typing import Dict, Any
 
 import config
-from socket_client import send_message_to_server
+from connect.socket_client import send_message_to_server
 
 
 class GestureOutputManager:

@@ -2,7 +2,6 @@
 手部工具类 - 提供手部计算和可视化功能
 """
 
-import cv2
 import math
 from typing import List, Tuple, Optional
 

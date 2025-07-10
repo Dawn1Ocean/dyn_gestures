@@ -8,7 +8,7 @@ import time
 import config
 from cvzone.HandTrackingModule import HandDetector
 from gestures.manager import GestureManager
-from socket_client import initialize_socket_client, disconnect_socket_client
+from connect.socket_client import initialize_socket_client, disconnect_socket_client
 from display import Display
 from camera_manager import CameraManager
 from logger_config import setup_logger

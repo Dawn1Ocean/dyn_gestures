@@ -212,9 +212,6 @@ class HandGestureApp:
     
     def run(self):
         """运行主应用循环"""
-        if not self.initialize():
-            return
-        
         self.logger.info("开始手势检测...")
         self.logger.info(f"使用摄像头: {self.camera_manager.get_camera_info()}")
         if config.USE_IP_CAMERA:
@@ -249,8 +246,6 @@ class HandGestureApp:
             self.logger.info("接收到中断信号，正在退出...")
         except Exception as e:
             self.logger.error(f"运行过程中出错: {e}")
-        finally:
-            self.cleanup()
     
     def cleanup(self):
         """清理资源"""

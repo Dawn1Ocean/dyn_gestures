@@ -13,7 +13,7 @@ CAMERA_FRAME_WIDTH = 640        # 摄像头帧宽度
 CAMERA_FRAME_HEIGHT = 360       # 摄像头帧高度
 
 # IP摄像头配置 (远程摄像头)
-USE_IP_CAMERA = True            # 是否使用IP摄像头 (True: 使用远程摄像头, False: 使用本地摄像头)
+USE_IP_CAMERA = False            # 是否使用IP摄像头 (True: 使用远程摄像头, False: 使用本地摄像头)
 IP_CAMERA_URL = "http://10.162.94.65:8080"  # IP摄像头URL (例如小米平板的IP Webcam地址)
 
 # 提示：如何设置IP摄像头
@@ -81,7 +81,7 @@ GESTURE_CONFIG = {
             'trail_alpha': 0.7,            # 轨迹透明度
             # 命令行轨迹输出配置
             'enable_console_output': True, # 启用命令行轨迹变化输出
-            'output_interval_frames': 3,   # 输出间隔帧数（回报率控制）
+            'output_interval_frames': 0,   # 输出间隔帧数（回报率控制）
             'movement_threshold': 5,       # 移动阈值（像素），小于此值不输出
             'output_format': 'simple',       # 输出格式：'json' 或 'simple'
         }

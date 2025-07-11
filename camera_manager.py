@@ -148,10 +148,6 @@ class CameraManager:
         self.is_initialized = False
         logger.info("摄像头资源已释放")
     
-    def __del__(self):
-        """析构函数，确保资源被释放"""
-        self.release()
-    
     def get_camera_info(self):
         """获取摄像头信息"""
         if not self.is_initialized:

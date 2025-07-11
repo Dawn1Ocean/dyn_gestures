@@ -144,7 +144,7 @@ class HandCloseDetector(TrackerGestureDetector):
                     self.jitter_counters[hand_id] = 0
         
         # 处理轨迹追踪（在状态机逻辑之后）
-        self.trajectory_tracker.update_tracking(hand_id, palm_center, current_is_fist, hand_type)
+        self.trajectory_tracker.update_tracking("HandClose", hand_id, palm_center, current_is_fist, hand_type)
         
         return gesture_result
     

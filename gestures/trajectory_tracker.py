@@ -55,8 +55,8 @@ class TrajectoryTracker:
         self.gesture_triggered[hand_id] = True
         self.trail_points[hand_id].clear()  # 清空之前的轨迹
         print(f"[TRACKING] 手势触发，开始轨迹追踪 {hand_id}")
-    
-    def update_tracking(self, hand_id: str, position: Tuple[int, int], is_active: bool, hand_type: str = "Unknown") -> Optional[Dict[str, Any]]:
+
+    def update_tracking(self, gesture: str, hand_id: str, position: Tuple[int, int], is_active: bool, hand_type: str = "Unknown") -> Optional[Dict[str, Any]]:
         """
         更新轨迹追踪状态
         Args:
@@ -95,7 +95,7 @@ class TrajectoryTracker:
             
             # 输出轨迹变化，使用统一的输出管理器
             output_trail_change_with_threshold(
-                hand_id, smoothed_position, hand_type,
+                gesture, hand_id, smoothed_position, hand_type,
                 self.last_output_positions, self.output_frame_counters,
                 self.tracking_config['output_interval_frames'], self.tracking_config['movement_threshold'],
             )

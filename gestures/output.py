@@ -64,9 +64,9 @@ class GestureOutputManager:
                 send_message(message, host=config.SOCKET_HOST, port=config.SOCKET_PORT)
             except Exception as e:
                 if self.enable_console_output:
-                    print(f"[GESTURE_OUTPUT] Socket发送失败: {e}")   
-    
-    def output_trail_change_with_threshold(self, hand_id: str, current_pos: tuple, hand_type: str,
+                    print(f"[GESTURE_OUTPUT] Socket发送失败: {e}")
+
+    def output_trail_change_with_threshold(self, gesture: str, hand_id: str, current_pos: tuple, hand_type: str,
                                          last_output_positions: dict, output_frame_counters: dict,
                                          output_interval_frames: int, movement_threshold: float) -> bool:
         # 检查输出间隔
@@ -92,7 +92,7 @@ class GestureOutputManager:
                     'hand_id': hand_id,
                     'hand_type': hand_type,
                     'confidence': 100,
-                    'gesture': '',
+                    'gesture': gesture,
                     'position': current_pos,
                     'movement_data': {
                         'movement': {
@@ -168,11 +168,11 @@ def output_gesture_detection(gesture_result: Dict[str, Any], hand_id: str):
     """便捷函数：输出手势检测结果"""
     get_output_manager().output_gesture_detection(gesture_result, hand_id)
 
-def output_trail_change_with_threshold(hand_id: str, current_pos: tuple, hand_type: str,
+def output_trail_change_with_threshold(gesture: str, hand_id: str, current_pos: tuple, hand_type: str,
                                      last_output_positions: dict, output_frame_counters: dict,
                                      output_interval_frames: int, movement_threshold: float) -> bool:
     """便捷函数：输出轨迹变化到命令行和Socket（带阈值控制）"""
     return get_output_manager().output_trail_change_with_threshold(
-        hand_id, current_pos, hand_type, last_output_positions, output_frame_counters,
+        gesture, hand_id, current_pos, hand_type, last_output_positions, output_frame_counters,
         output_interval_frames, movement_threshold
     )
